@@ -1,0 +1,2564 @@
+diff --git a/frontend/src/i18n/resources/en.json b/frontend/src/i18n/resources/en.json
+index c4b9a98..55dc40d 100644
+--- a/frontend/src/i18n/resources/en.json
++++ b/frontend/src/i18n/resources/en.json
+@@ -624,11 +624,8 @@
+       "title": "Autoplay",
+       "enable": "Enable autoplay",
+       "enable_help": "When enabled, Mokora performs the bot's chosen action for you. Requires the Chromium capture mode and a running game tab. On Mahjong Soul the action is clicked on the board; on Tenhou it is sent directly over the game connection; on Riichi City it is injected as the client's own protocol frames through the MITM proxy (no Chromium needed).",
+-      "platform_note": "These click-timing knobs apply to Mahjong Soul only. Tenhou and Riichi City autoplay send the action over the game connection and do not click, so they use the thinking-time model below but none of the settings above.",
++      "platform_note": "The click-timing settings above apply to Mahjong Soul (autoplay simulates mouse clicks).",
+       "requires_chromium": "Autoplay requires the Chromium capture mode.",
+-      "rc_warning_title": "Riichi City autoplay risk warning",
+-      "rc_warning_desc": "Autoplay on Riichi City is implemented by injecting protocol frames through the MITM proxy. This approach still has open safety concerns and may get your account banned. Use it at your own risk.",
+-      "rc_warning_ack": "I understand the risk",
+       "pre_click_delay_min": "Pre-click delay (min, ms)",
+       "pre_click_delay_max": "Pre-click delay (max, ms)",
+       "inter_click_delay": "Inter-click delay (ms)",
+@@ -699,7 +696,10 @@
+       "next_game_start": "Start auto play",
+       "next_game_start_started": "Auto play is starting. Watch the game window.",
+       "next_game_start_failed": "Could not start: {{error}}",
+-      "next_game_buttons_moved": "\"Start auto play\" and \"Log in again\" are in the sidebar, and run with the saved settings."
++      "next_game_buttons_moved": "\"Start auto play\" and \"Log in again\" are in the sidebar, and run with the saved settings.",
++      "warning_title": "Autoplay risk",
++      "warning_desc": "Autoplay plays the game for you. Mahjong Soul's terms of use do not allow that, and your account may be warned or banned. Use it only on your own account and at your own risk. It is off by default and you can turn it off here at any time.",
++      "warning_ack": "I understand"
+     },
+     "overlay": "Suggestion overlay",
+     "overlay_enabled": "Show overlay window",
+@@ -948,10 +948,6 @@
+   "platform": {
+     "majsoul": "Mahjong Soul",
+     "majsoul_desc": "game.maj-soul.com — yonma + sanma",
+-    "tenhou": "Tenhou",
+-    "tenhou_desc": "tenhou.net — yonma + sanma",
+-    "riichi_city": "Riichi City",
+-    "riichi_city_desc": "Native client — MITM only · yonma + sanma",
+     "mjai": "mjai"
+   },
+   "updates": {
+diff --git a/frontend/src/i18n/resources/ja.json b/frontend/src/i18n/resources/ja.json
+index 15e5518..d8add8f 100644
+--- a/frontend/src/i18n/resources/ja.json
++++ b/frontend/src/i18n/resources/ja.json
+@@ -624,11 +624,8 @@
+       "title": "自動操作",
+       "enable": "自動操作を有効化",
+       "enable_help": "有効にすると、Mokora がボットの選んだ手を自動で実行します。Chromium キャプチャモードと起動中の対局タブが必要です。雀魂では卓上をクリックし、天鳳では対局接続に直接送信します。",
+-      "platform_note": "上記のクリック時間の設定は雀魂のみに適用されます。天鳳の自動打牌は対局接続に直接送信するためクリックを行わず、下の思考時間モデルのみを使用します。",
++      "platform_note": "上のクリック時間の設定は雀魂にのみ適用されます（自動打牌はマウスクリックを模擬します）。",
+       "requires_chromium": "自動操作にはChromiumキャプチャモードが必要です。",
+-      "rc_warning_title": "麻雀一番街の自動操作に関する警告",
+-      "rc_warning_desc": "麻雀一番街の自動操作は MITM によるパケット注入で実現されています。安全性には依然として懸念があり、アカウントが BAN される可能性があります。リスクをご理解の上でご利用ください。",
+-      "rc_warning_ack": "リスクを理解しました",
+       "pre_click_delay_min": "クリック前の待機 (最小, ms)",
+       "pre_click_delay_max": "クリック前の待機 (最大, ms)",
+       "inter_click_delay": "クリック間の待機 (ms)",
+@@ -699,7 +696,10 @@
+       "next_game_start": "自動プレイを開始",
+       "next_game_start_started": "自動プレイを開始しています。ゲームウィンドウを見てください。",
+       "next_game_start_failed": "開始できません：{{error}}",
+-      "next_game_buttons_moved": "「自動プレイ開始」と「再ログイン」は左のサイドバーにあり、保存済みの設定で動きます。"
++      "next_game_buttons_moved": "「自動プレイ開始」と「再ログイン」は左のサイドバーにあり、保存済みの設定で動きます。",
++      "warning_title": "自動打牌のリスク",
++      "warning_desc": "自動打牌はあなたの代わりにゲームを操作します。雀魂の利用規約では認められておらず、アカウントが警告や停止の対象になる可能性があります。自分のアカウントにだけ使い、自己責任でお使いください。既定ではオフで、いつでもここで切れます。",
++      "warning_ack": "了解しました"
+     },
+     "overlay": "推奨オーバーレイ",
+     "overlay_enabled": "オーバーレイウィンドウを表示",
+@@ -948,10 +948,6 @@
+   "platform": {
+     "majsoul": "雀魂",
+     "majsoul_desc": "game.maj-soul.com — 四麻 + 三麻",
+-    "tenhou": "天鳳",
+-    "tenhou_desc": "tenhou.net — 四麻 + 三麻",
+-    "riichi_city": "麻雀一番街",
+-    "riichi_city_desc": "ネイティブアプリ — MITM のみ · 四麻 + 三麻",
+     "mjai": "mjai"
+   },
+   "updates": {
+diff --git a/frontend/src/i18n/resources/zh-CN.json b/frontend/src/i18n/resources/zh-CN.json
+index 20026b2..c3cc405 100644
+--- a/frontend/src/i18n/resources/zh-CN.json
++++ b/frontend/src/i18n/resources/zh-CN.json
+@@ -624,11 +624,8 @@
+       "title": "自动打牌",
+       "enable": "启用自动打牌",
+       "enable_help": "启用后,Mokora 会替你执行 BOT 选择的动作。需使用 Chromium 抓取模式并开着游戏标签页。雀魂会在牌桌上点击;天凤则直接通过游戏连接发送。",
+-      "platform_note": "以上点击时间参数仅适用于雀魂。天凤的自动打牌是直接通过游戏连接发送动作,不做点击,因此只会套用下方的思考时间模型,不会用到上面的设置。",
++      "platform_note": "以上点击时间参数仅适用于雀魂（自动打牌是模拟鼠标点击）。",
+       "requires_chromium": "自动打牌需要使用 Chromium 抓包模式。",
+-      "rc_warning_title": "麻雀一番街自动打牌风险警告",
+-      "rc_warning_desc": "麻雀一番街的自动打牌是通过 MITM 注入游戏数据包的方式实现的,在安全性上仍有疑虑,可能导致账号被封禁。请自行评估风险后再使用。",
+-      "rc_warning_ack": "我已了解风险",
+       "pre_click_delay_min": "点击前延迟 (最小, ms)",
+       "pre_click_delay_max": "点击前延迟 (最大, ms)",
+       "inter_click_delay": "连续点击间延迟 (ms)",
+@@ -699,7 +696,10 @@
+       "next_game_start": "启动自动游玩",
+       "next_game_start_started": "自动游玩启动中，请查看游戏窗口。",
+       "next_game_start_failed": "无法启动：{{error}}",
+-      "next_game_buttons_moved": "「启动自动游玩」与「重新登录游戏」在左侧栏，会使用已保存的设置。"
++      "next_game_buttons_moved": "「启动自动游玩」与「重新登录游戏」在左侧栏，会使用已保存的设置。",
++      "warning_title": "自动打牌的风险",
++      "warning_desc": "自动打牌会代替你操作游戏，雀魂的使用条款不允许这种行为，你的账号可能被警告或封禁。请只用在你自己的账号上，并自行承担风险。默认是关闭的，你随时可以在这里关掉。",
++      "warning_ack": "我了解了"
+     },
+     "overlay": "建议悬浮窗",
+     "overlay_enabled": "显示悬浮窗",
+@@ -948,10 +948,6 @@
+   "platform": {
+     "majsoul": "雀魂",
+     "majsoul_desc": "game.maj-soul.com — 四麻 + 三麻",
+-    "tenhou": "天凤",
+-    "tenhou_desc": "tenhou.net — 四麻 + 三麻",
+-    "riichi_city": "麻雀一番街",
+-    "riichi_city_desc": "原生客户端 — 仅 MITM · 四麻 + 三麻",
+     "mjai": "mjai"
+   },
+   "updates": {
+diff --git a/frontend/src/i18n/resources/zh-TW.json b/frontend/src/i18n/resources/zh-TW.json
+index 4edfcd5..cf6e17e 100644
+--- a/frontend/src/i18n/resources/zh-TW.json
++++ b/frontend/src/i18n/resources/zh-TW.json
+@@ -624,11 +624,8 @@
+       "title": "自動打牌",
+       "enable": "啟用自動打牌",
+       "enable_help": "啟用後,Mokora 會替你執行 BOT 選擇的動作。需使用 Chromium 擷取模式並開著遊戲分頁。雀魂會在牌桌上點擊;天鳳則直接透過遊戲連線送出。",
+-      "platform_note": "以上點擊時間參數僅適用於雀魂。天鳳的自動打牌是直接透過遊戲連線送出動作,不做點擊,因此只會套用下方的思考時間模型,不會用到上面的設定。",
++      "platform_note": "以上點擊時間參數僅適用於雀魂（自動打牌是模擬滑鼠點擊）。",
+       "requires_chromium": "自動打牌需要使用 Chromium 擷取模式。",
+-      "rc_warning_title": "麻雀一番街自動打牌風險警告",
+-      "rc_warning_desc": "麻雀一番街的自動打牌是透過 MITM 注入遊戲封包的方式實現的,在安全性上仍有疑慮,可能導致帳號被封禁。請自行評估風險後再使用。",
+-      "rc_warning_ack": "我已了解風險",
+       "pre_click_delay_min": "點擊前延遲 (最小, ms)",
+       "pre_click_delay_max": "點擊前延遲 (最大, ms)",
+       "inter_click_delay": "連續點擊間延遲 (ms)",
+@@ -699,7 +696,10 @@
+       "next_game_start": "啟動自動遊玩",
+       "next_game_start_started": "自動遊玩啟動中，請看遊戲視窗。",
+       "next_game_start_failed": "無法啟動：{{error}}",
+-      "next_game_buttons_moved": "「啟動自動遊玩」與「重新登入遊戲」在左側欄，會使用已儲存的設定。"
++      "next_game_buttons_moved": "「啟動自動遊玩」與「重新登入遊戲」在左側欄，會使用已儲存的設定。",
++      "warning_title": "自動打牌的風險",
++      "warning_desc": "自動打牌會代替你操作遊戲，雀魂的使用條款不允許這種行為，你的帳號可能被警告或停權。請只用在你自己的帳號上，並自行承擔風險。預設是關閉的，你隨時可以在這裡關掉。",
++      "warning_ack": "我了解了"
+     },
+     "overlay": "建議懸浮視窗",
+     "overlay_enabled": "顯示懸浮視窗",
+@@ -948,10 +948,6 @@
+   "platform": {
+     "majsoul": "雀魂",
+     "majsoul_desc": "game.maj-soul.com — 四麻 + 三麻",
+-    "tenhou": "天鳳",
+-    "tenhou_desc": "tenhou.net — 四麻 + 三麻",
+-    "riichi_city": "麻雀一番街",
+-    "riichi_city_desc": "原生用戶端 — 僅 MITM · 四麻 + 三麻",
+     "mjai": "mjai"
+   },
+   "updates": {
+diff --git a/frontend/src/lib/platforms.ts b/frontend/src/lib/platforms.ts
+index 8b29ae8..7a8d465 100644
+--- a/frontend/src/lib/platforms.ts
++++ b/frontend/src/lib/platforms.ts
+@@ -1,5 +1,7 @@
+ // Platform metadata used by the Setup wizard, Settings page, and any
+-// UI that needs to show platform-specific defaults / hints.
++// UI that needs to show platform-specific defaults / hints. Only Mahjong Soul
++// is supported; a new game adds its entry here (and its backend side — see
++// `src/config/platform.rs`).
+ //
+ // `kind` mirrors `src/config/platform.rs::Platform` (PascalCase JSON), so
+ // the values flow into `AppConfig.platform.kind` unchanged.
+@@ -21,9 +23,9 @@ export type PlatformInfo = {
+   defaultStartUrl: string
+   /**
+    * Whether the Chromium (CDP) capture backend can drive this platform.
+-   * `false` for native clients with no web build (e.g. Riichi City), which
+-   * are only reachable through the MITM proxy. The UI hides / disables the
+-   * Chromium option and forces MITM for these.
++   * `false` for native clients with no web build, which are only reachable
++   * through the MITM proxy. The UI hides / disables the Chromium option and
++   * forces MITM for these.
+    */
+   supportsChromium: boolean
+ }
+@@ -36,21 +38,6 @@ export const PLATFORMS: PlatformInfo[] = [
+     defaultStartUrl: 'https://game.maj-soul.com/1/',
+     supportsChromium: true,
+   },
+-  {
+-    kind: 'Tenhou',
+-    labelKey: 'platform.tenhou',
+-    descriptionKey: 'platform.tenhou_desc',
+-    defaultStartUrl: 'https://tenhou.net/4/',
+-    supportsChromium: true,
+-  },
+-  {
+-    kind: 'RiichiCity',
+-    labelKey: 'platform.riichi_city',
+-    descriptionKey: 'platform.riichi_city_desc',
+-    // Native client, no web build → MITM only.
+-    defaultStartUrl: '',
+-    supportsChromium: false,
+-  },
+ ]
+ 
+ const BY_KIND: Record<PlatformKind, PlatformInfo> = Object.fromEntries(
+diff --git a/frontend/src/lib/setupDefaults.test.ts b/frontend/src/lib/setupDefaults.test.ts
+index d900b34..0a770a5 100644
+--- a/frontend/src/lib/setupDefaults.test.ts
++++ b/frontend/src/lib/setupDefaults.test.ts
+@@ -98,14 +98,6 @@ describe('withFirstRunCaptureDefault', () => {
+     expect(out.capture.mode).toBe('mitm')
+   })
+ 
+-  it('leaves native-only platforms on MITM even on a first run', () => {
+-    // Riichi City has no web build → Chromium capture cannot drive it.
+-    const out = withFirstRunCaptureDefault(
+-      makeConfig({ platform: 'RiichiCity', mode: 'mitm' }),
+-    )
+-    expect(out.capture.mode).toBe('mitm')
+-  })
+-
+   it('never overrides a mode that is already set (not the untouched default)', () => {
+     const out = withFirstRunCaptureDefault(makeConfig({ mode: 'chromium' }))
+     expect(out.capture.mode).toBe('chromium')
+diff --git a/frontend/src/routes/Settings.tsx b/frontend/src/routes/Settings.tsx
+index 9984398..0856489 100644
+--- a/frontend/src/routes/Settings.tsx
++++ b/frontend/src/routes/Settings.tsx
+@@ -89,7 +89,8 @@ export function Settings() {
+   // moment the draft combines the two, from either direction (platform
+   // switched to Riichi City while autoplay is on, or autoplay switched on
+   // while the platform is Riichi City).
+-  const [rcAutoplayWarnOpen, setRcAutoplayWarnOpen] = useState(false)
++  // The risk notice shown the first time autoplay is switched on.
++  const [autoplayWarnOpen, setAutoplayWarnOpen] = useState(false)
+ 
+   useEffect(() => {
+     // Sync the editable draft from the store when it (re)loads.
+@@ -201,11 +202,7 @@ export function Settings() {
+ 
+       <OverlayCard draft={draft} setDraft={setDraft} />
+ 
+-      <PlatformCard
+-        draft={draft}
+-        setDraft={setDraft}
+-        onRiichiCityAutoplay={() => setRcAutoplayWarnOpen(true)}
+-      />
++      <PlatformCard draft={draft} setDraft={setDraft} />
+ 
+       <CaptureCard draft={draft} setDraft={setDraft} />
+ 
+@@ -278,7 +275,7 @@ export function Settings() {
+       <AutoplayCard
+         draft={draft}
+         setDraft={setDraft}
+-        onRiichiCityAutoplay={() => setRcAutoplayWarnOpen(true)}
++        onFirstEnable={() => setAutoplayWarnOpen(true)}
+       />
+ 
+       <PrivacyCard draft={draft} setDraft={setDraft} />
+@@ -297,17 +294,23 @@ export function Settings() {
+         />
+       )}
+ 
+-      <Dialog open={rcAutoplayWarnOpen} onOpenChange={setRcAutoplayWarnOpen}>
++      <Dialog open={autoplayWarnOpen} onOpenChange={setAutoplayWarnOpen}>
+         <DialogContent>
+           <DialogHeader>
+-            <DialogTitle>{t('settings.autoplay.rc_warning_title')}</DialogTitle>
++            <DialogTitle>{t('settings.autoplay.warning_title')}</DialogTitle>
+             <DialogDescription>
+-              {t('settings.autoplay.rc_warning_desc')}
++              {t('settings.autoplay.warning_desc')}
+             </DialogDescription>
+           </DialogHeader>
+           <DialogFooter className="bg-transparent p-0 border-0 mx-0 mb-0">
+-            <Button size="sm" onClick={() => setRcAutoplayWarnOpen(false)}>
+-              {t('settings.autoplay.rc_warning_ack')}
++            <Button
++              size="sm"
++              onClick={() => {
++                acknowledgeAutoplayRisk()
++                setAutoplayWarnOpen(false)
++              }}
++            >
++              {t('settings.autoplay.warning_ack')}
+             </Button>
+           </DialogFooter>
+         </DialogContent>
+@@ -316,6 +319,26 @@ export function Settings() {
+   )
+ }
+ 
++const AUTOPLAY_ACK_KEY = 'mokora.autoplayRiskAck'
++
++/** Has the player seen the autoplay risk notice before? Kept in the webview's
++ *  storage, so it is asked once per account window. */
++function autoplayRiskAcknowledged(): boolean {
++  try {
++    return localStorage.getItem(AUTOPLAY_ACK_KEY) === '1'
++  } catch {
++    return false
++  }
++}
++
++function acknowledgeAutoplayRisk() {
++  try {
++    localStorage.setItem(AUTOPLAY_ACK_KEY, '1')
++  } catch {
++    /* asked again next time */
++  }
++}
++
+ /** Everything optional that leaves the machine, in one place. Nothing here
+  *  changes how a game is read or played. The game's own telemetry is
+  *  `proxy.block_telemetry` (older than `[privacy]`, so it stays where
+@@ -844,19 +867,14 @@ function UiScaleField() {
+ function PlatformCard({
+   draft,
+   setDraft,
+-  onRiichiCityAutoplay,
+ }: {
+   draft: AppConfig
+   setDraft: (c: AppConfig) => void
+-  onRiichiCityAutoplay: () => void
+ }) {
+   const { t } = useTranslation()
+   const current = draft.platform.kind
+   const setKind = (kind: PlatformKind) => {
+     if (kind === current) return
+-    if (kind === 'RiichiCity' && (draft.autoplay?.enabled ?? false)) {
+-      onRiichiCityAutoplay()
+-    }
+     // If the user hasn't customised the Chromium start URL, swap it to
+     // the new platform's default so the next launch lands on the right
+     // game. A user-customised URL is left alone — the URL field below
+@@ -911,11 +929,12 @@ function PlatformCard({
+ function AutoplayCard({
+   draft,
+   setDraft,
+-  onRiichiCityAutoplay,
++  onFirstEnable,
+ }: {
+   draft: AppConfig
+   setDraft: (c: AppConfig) => void
+-  onRiichiCityAutoplay: () => void
++  /** Called when autoplay is switched on, for the one-time risk notice. */
++  onFirstEnable: () => void
+ }) {
+   const { t } = useTranslation()
+   const ap = draft.autoplay ?? {
+@@ -937,9 +956,6 @@ function AutoplayCard({
+   const delay = ap.delay ?? defaultDelayModel()
+   const ng = ap.next_game ?? defaultNextGame()
+   const captureIsChromium = draft.capture?.mode === 'chromium'
+-  // Riichi City autoplay runs through the MITM proxy (frame injection), so
+-  // the Chromium-mode requirement only applies to the click platforms.
+-  const platformIsRiichiCity = draft.platform?.kind === 'RiichiCity'
+   const setApField = (patch: Partial<typeof ap>) =>
+     setDraft({ ...draft, autoplay: { ...ap, ...patch } })
+   const setMajsoulField = (patch: Partial<typeof ap.majsoul>) =>
+@@ -968,13 +984,13 @@ function AutoplayCard({
+           value={ap.enabled}
+           onChange={(v) => {
+             setApField({ enabled: v })
+-            if (v && platformIsRiichiCity) onRiichiCityAutoplay()
++            if (v && !autoplayRiskAcknowledged()) onFirstEnable()
+           }}
+         />
+         <p className="text-xs text-muted-foreground">
+           {t('settings.autoplay.enable_help')}
+         </p>
+-        {ap.enabled && !captureIsChromium && !platformIsRiichiCity && (
++        {ap.enabled && !captureIsChromium && (
+           <p className="text-xs text-amber-500">
+             {t('settings.autoplay.requires_chromium')}
+           </p>
+diff --git a/frontend/src/types.ts b/frontend/src/types.ts
+index ed17227..9dd3ee2 100644
+--- a/frontend/src/types.ts
++++ b/frontend/src/types.ts
+@@ -95,7 +95,7 @@ export type DetectedBrowser = {
+ /// share names but the schema enum carries extra archive-only variants).
+ /// Mirrors `src/config/platform.rs::Platform` (`#[derive(Serialize)]` →
+ /// PascalCase JSON: `"Majsoul"`, `"Tenhou"`).
+-export type PlatformKind = 'Majsoul' | 'Tenhou' | 'RiichiCity'
++export type PlatformKind = 'Majsoul'
+ 
+ export type MajsoulAutoplayConfig = {
+   pre_click_delay_min_ms: number
+diff --git a/src/autoplay/README.md b/src/autoplay/README.md
+index 004ba12..11100da 100644
+--- a/src/autoplay/README.md
++++ b/src/autoplay/README.md
+@@ -5,33 +5,29 @@ actually does, dispatched over CDP. Only active when
+ `autoplay.enabled = true` **and** the chromium capture backend is running
+ (the MITM path has no page handle at all).
+ 
+-Two very different routes in, decided by `platform.kind`:
+-
+-| Platform | Route | Why |
+-|---|---|---|
+-| Mahjong Soul | synthesised mouse input at reconstructed coordinates | The client renders to a canvas and exposes nothing to script. |
+-| Tenhou | the client's own DOM buttons and discard handler | The client is HTML and script, so its input path can be driven directly. |
+-
++One route in: Mahjong Soul renders to a canvas and exposes nothing to script,
++so the only way is synthesised mouse input at reconstructed coordinates.
+ Almost everything intricate in this module — coordinate tables, candidate
+ row index arithmetic, click verification, retries, page reloads — exists
+-because of the first route. The Tenhou path needs none of it: it presses
+-what the user would press, and an action that did not land says so. What
+-both share is the delay model, because a decision executed the instant the
+-bot answers is the most obvious tell there is.
++because of that. What every route shares is the delay model, because a
++decision executed the instant the bot answers is the most obvious tell there
++is.
++
++Other games plug in through `PlatformAutoplay` (see "Adding a game" below);
++`_parked/other-games/` holds a DOM-driven web client (Tenhou) and a
++frame-injected native one (Riichi City) as worked examples.
+ 
+ ## Module map
+ 
+ | Module | Role |
+ |---|---|
+ | `manager.rs` | Long-lived task: subscribes to `BotResponseBus` + `MjaiBus`, owns per-game state (`last_kawa_tile`, riichi flags, reach two-step), executes click plans. |
+-| `platform.rs` | `PlatformAutoplay` trait + `ActionContext`/`PlanResult`/`Step` (`Click` / `Sleep` / `AwaitReady` / `DomClick` / `Discard`). The manager only knows this trait. |
++| `platform.rs` | `PlatformAutoplay` trait + `ActionContext`/`PlanResult`/`Step` (`Click` / `Sleep`). The manager only knows this trait. |
+ | `majsoul/` | The Majsoul implementation: 16:9 coordinate tables (`coords.rs`) + plan dispatch for every mjai action type. |
+-| `tenhou/` | The Tenhou implementation: press the client's own action buttons (`Step::DomClick`) or call its discard handler with a tile index (`Step::Discard`). `tenhou/inject.rs` is what makes the latter reachable. |
+-| `tenhou_state.rs` | `TenhouState` — the hand at Tenhou tile-index resolution plus the current decision window (the server's `t` bitmask). Written by the Tenhou bridge, read here. Without it an mjai tile *string* cannot be resolved to the physical copy Tenhou wants. |
+ | `budget.rs` | `TimeBudget` — the server's per-decision-window time grant (`OptionalOperationList.time_fixed/time_add`, ms). Written by the Majsoul bridge, read here. Never locally accounted; always the server's own value. |
+ | `delay/` | The pre-click "thinking time" model. See below. |
+-| `context.rs` | `AutoplayContext` — shared slots between the capture backend, the bridge and the manager (`page`, `canvas_rect`, `resize`, `time_budget`, `input_watch`, `tenhou_state`). |
+-| `cdp_input.rs` | chromiumoxide wrappers: hover → press → hold → release click sequence (optionally with a mid-press cursor jiggle for retries), canvas rect query, and the Tenhou route's DOM helpers — action-button selectors, the readiness probe, and the call into the injected discard handler. |
++| `context.rs` | `AutoplayContext` — shared slots between the capture backend, the bridge and the manager (`page`, `canvas_rect`, `resize`, `time_budget`, `input_watch`). |
++| `cdp_input.rs` | chromiumoxide wrappers: hover → press → hold → release click sequence (optionally with a mid-press cursor jiggle for retries), canvas rect query, and the screenshot reads the next-game flow steers by. |
+ | `lobby.rs` | Majsoul only. `LobbyWatch` — the client's own lobby uplink (back in the lobby / a room's table list opened / queued for a table) and the rank change reported at game end, as counters + tickets. Written by the Majsoul bridge, read by `next_game`. |
+ | `next_game.rs` | Majsoul only. The "start the next ranked game" task: dismisses the result screens, opens the ranked lobby, a room and a table, proving each stage from `lobby`. See below. |
+ | `resize.rs` | Majsoul only. `ResizeWatch` — counts window resizes of the game tab (CDP `Page.frameResized`, bumped by the chromium capture backend). The cached canvas rect is re-measured only when the count moved since it was measured, after the window has been still for 100 ms and the page has re-laid the canvas out (`fits_viewport`: Majsoul sizes it 100 ms after the resize, to the largest 16:9 box that fits). Each press checks the count again after its hover, just before pressing, and re-aims if the window resized under it. An unresized press pays one atomic load. |
+@@ -46,127 +42,24 @@ our seat can act, so an `MjaiEvent::None` reaching autoplay is a *decline*
+ turn". That distinction is not visible in the reply itself, which is why it
+ is settled upstream; see `src/bot/README.md` → "Deciding what to ask".
+ 
+-It has to be settled somewhere. One Tenhou frame can carry three seats'
+-actions, and when the bot was asked about all of them, the fillers answered
+-first: a real `hora` arrived to find a pass already pressed into its window.
+-
+-## The Tenhou route (`tenhou/`)
+-
+-Tenhou's client owns its board state, and its receive path deliberately
+-ignores the server's echo of *our own* discard
+-(`1==U.a && "D"==c.tag || Nb.cb(c)`) because its own handler already
+-applied it locally. Writing frames onto the socket behind its back
+-therefore froze the board from the first discard on — observed in a live
+-game. So actions go through the client's own handlers.
+-
+-| Action | How | Coordinates? |
+-|---|---|---|
+-| chi / pon / kan / riichi / ron / tsumo / kyuushu / kita / pass | click `button.s7[name="c22-<slot>"]` | no |
+-| discard | call the client's `c21` handler with the tile index | no |
+-
+-**Buttons.** The client routes clicks on `class="s7"` elements through a
+-body-level listener into its own handler, so a dispatched click is
+-indistinguishable from the user pressing one. Slot numbering comes from
+-the client's menu builder: 0 tsumo, 1 ron, 2 riichi, 3 kyuushu, 4 pass,
+-5–9 kita, 10–12 kan, 13 daiminkan, 14/15 pon, 16–21 chi.
+-
+-A slot is not one action, though — several hold *variants*, and which
+-variants the client draws depends on the hand. Getting this from the
+-client's own menu builder rather than from what a few live windows happened
+-to show is what makes it right, because the common case (one variant) looks
+-the same under every wrong theory:
+-
+-- **Pon.** Slot 15 is the pon, and it spends a red five whenever the hand
+-  holds one. Slot 14 is drawn *only* when there is a choice to make — one
+-  red copy and two plain ones — and it is the pair that leaves the red out.
+-  So a pon spending a red asks for 15 alone; one that does not asks for 14
+-  and settles for 15, which is the same pon whenever 14 was not drawn.
+-- **Chi.** Each of the three shapes (called tile lowest / middle / highest)
+-  is a pair: the odd slot is the shape made of plain copies, the even one
+-  below it spends a red five. Unlike pon, either can be drawn without the
+-  other, so each resolves to exactly one slot and never falls back.
+-- **Kan.** The three slots hold whatever kans are on offer, packed densely
+-  in the order the client builds them: every pon we hold the fourth copy of
+-  (in the order those melds were called), then every concealed set of four
+-  by ascending tile class. The button says nothing about its tile, so
+-  telling two kans apart means rebuilding that list — `tenhou::kan_slots`.
+-- **Kita.** Sanma's North is assigned first of its family, so the family is
+-  tried in the client's own fill order.
+-
+-Order matters twice over, because the client appends its buttons **highest
+-slot first** (`Object.keys(k).sort((a,n)=>n-a)`). A comma-joined selector
+-would therefore resolve through `querySelector`'s document order and return
+-the *highest* match — so a plan carries a list of selectors and
+-`cdp_input::click_dom` walks it in the caller's order. (This is visible in
+-the logs: a missed press reports the offered slots as the client holds
+-them, e.g. `[15, 4]`.)
+-
+-**The discard** has no DOM element, but it needs no position either. The
+-client's `c21` handler takes a tile *index* and does the rest — sends the
+-frame and updates its own board. It lives inside the client's IIFE, so
+-[`tenhou::inject`] rewrites the script in flight to publish the registry
+-holding it; see that module for how the name is recovered rather than
+-hard-coded. This is why nothing here computes canvas geometry, and why a
+-call moving the hand cannot affect it.
+-
+-**Timing** is the part that had to be learned. Frame arrival is not the
+-start of the turn: Tenhou's server sends as fast as the seats answer —
+-against instant opponents, three seats' actions in one burst — and the
+-client then animates for seconds before drawing buttons or starting its
+-clock. Every plan therefore opens with `Step::AwaitReady`, which waits for
+-the client's clock to appear, and the think time is measured from there.
+-Button presses additionally poll for their element, because the window in
+-which it exists is bounded by animation on one side and resolution on the
+-other.
+-
+-Both action steps are dropped when the decision window they were planned
+-against is no longer the live one (its `opened_at` is its identity): a
+-button press because the client would no longer be offering it anyway, and
+-a discard because the client's handler is *not* guarded — it applies the
+-tile to the local board whether or not it is our turn, so a stale call
+-desyncs the board rather than merely wasting a frame. The one exemption is
+-the riichi tile: the declaration press itself replaces the window (the
+-server acks with `REACH step=1` and the bridge re-opens it), so for that
+-plan the moved window is expected, and the tile is still owed.
+-
+-**Riichi** is one plan, not two: the declaration button and then the tile
+-the bot named on its `Reach`. The client takes them as separate inputs and
+-sits on its clock until it has both, and nothing prompts a second bot
+-decision here — the `reach` the server echoes back is our own action coming
+-home, not a new question.
+-
+-`Reach.pai` is a V3 extension; mjai itself has no such field, so a correct
+-third-party mjai bot declares riichi as a bare `reach` with no tile. The
+-tile is resolved **before** the plan is built, in `bot::manager`: when a
+-bot's reaction is a bare `reach` and autoplay is on, the manager feeds the
+-same runner a synthetic `reach` and reads back the declaring `dahai` —
+-exactly the declare → echo → discard shape mjai prescribes — then fills
+-`Reach.pai`. The built-in native bot does this internally already; the
+-manager generalises it to any runner. The follow-up is gated on autoplay
+-because it mutates a stateful bot as though riichi were declared, which is
+-only safe when we then commit that declaration; in analysis mode the human
+-may decline. The bridge's later own-seat `reach` echo is dropped from the
+-runner's view (`drop_next_own_reach`) so a stateful bot never applies
+-`reach` twice. See issue #257.
+-
+-If that resolution fails (the bot answers with something other than a
+-dahai, or the follow-up errors), the plan still sees a bare `reach` and
+-declines the declaration whole rather than pressing the button half:
+-pressing it without a tile to follow is worse than not pressing it, because
+-at clock expiry the *client* completes the riichi itself by throwing the
+-drawn tile, committing the hand to a wait the bot never chose. The same
+-refusal applies when the tracked hand cannot produce the tile the bot
+-named.
+-
+-### Still to verify against a live game
+-
+-- **Riichi.** Once riichi is *accepted* the planner stops issuing
+-  discards, assuming the client auto-discards for itself. If it does not,
+-  autoplay stalls for the rest of the hand rather than misplaying it.
+-- **The two-variant windows** — a pon with three copies including a red, a
+-  chi where both the plain and red copy are held, two kans at once. The
+-  mapping is read off the client's builder rather than guessed, but no live
+-  hand has offered one yet.
++It has to be settled somewhere. One frame can carry several seats' actions,
++and when the bot was asked about all of them, the fillers answered first: a
++real `hora` arrived to find a pass already pressed into its window.
++
++## Adding a game
++
++1. `config::Platform` gets a variant (`src/config/platform.rs`), and the
++   frontend's platform list (`lib/platforms.ts`) an entry.
++2. Implement `PlatformAutoplay` for it: `plan(&ActionContext) -> PlanResult`
++   turns a bot decision into `Step`s. Canvas games use `Step::Click`; a
++   client that is not a canvas needs `Step` kinds of its own, each with an
++   executor in `manager.rs`.
++3. Add the field and the match arm in `AutoplayManager::handle_bot_response`.
++4. A bridge slot the planner needs (hand indices, a decision window) goes in
++   `BridgeHooks` and `AutoplayContext`.
++
++The two implementations that were here are kept, with everything they touched
++and a patch of the shared-file changes, in `_parked/other-games/`.
+ 
+ ## Next game (`next_game.rs`, Majsoul)
+ 
+@@ -301,9 +194,8 @@ current decision window — not a sleep length. The caller subtracts what
+ the window has already consumed before emitting the `Step::Sleep`:
+ `majsoul::push_pre_delay` deducts network, proxy and bot inference time
+ from the server's own budget, plus the upcoming click sequence's duration.
+-`tenhou::push_pre_delay` has neither to deduct — Tenhou publishes no
+-per-window budget and nothing is being clicked — so the target *is* the
+-sleep.
++A platform with neither a per-window budget nor anything to click has
++nothing to deduct, so the target *is* the sleep.
+ 
+ Layers, in order:
+ 
+diff --git a/src/autoplay/cdp_input.rs b/src/autoplay/cdp_input.rs
+index d858e73..a3f0996 100644
+--- a/src/autoplay/cdp_input.rs
++++ b/src/autoplay/cdp_input.rs
+@@ -490,10 +490,8 @@ pub async fn result_button_visible(
+ 
+ /// Read the game canvas's `getBoundingClientRect()` via `Runtime.evaluate`.
+ ///
+-/// Majsoul renders into the first `<canvas>` element on the page; Tenhou
+-/// uses the same selector when running in browser mode. We grab the
+-/// first canvas indiscriminately — multi-canvas pages aren't a thing on
+-/// these platforms.
++/// Majsoul renders into the first `<canvas>` element on the page. We grab the
++/// first canvas indiscriminately — multi-canvas pages aren't a thing there.
+ pub async fn evaluate_canvas_rect(page: &Page) -> Result<CanvasRect> {
+     Ok(evaluate_canvas_layout(page).await?.0)
+ }
+@@ -532,167 +530,10 @@ pub async fn evaluate_canvas_layout(page: &Page) -> Result<(CanvasRect, (f64, f6
+     Ok((rect, viewport))
+ }
+ 
+-// ============================================================================
+-// Tenhou actuation
+-// ============================================================================
+-//
+-// Tenhou's client owns its board state: when you discard, its own handler
+-// updates the board *and* sends the frame, and its receive path then
+-// deliberately ignores the server's echo of that discard
+-// (`1==U.a && "D"==c.tag || Nb.cb(c)`) because it has already applied it.
+-// Writing the frame onto the socket behind the client's back therefore
+-// freezes the board — the local apply never happened and the echo is
+-// skipped. Everything here exists to drive the client's *own* input path
+-// instead, so its state machine stays in step.
+-//
+-// Two routes, because the client has two:
+-//
+-// - Buttons (chi/pon/kan/riichi/ron/tsumo/kyuushu/kita/pass) are real DOM
+-//   elements carrying `class="s7" name="c22-<slot>"`, routed by a
+-//   body-level click listener into the client's own handler. A dispatched
+-//   click is indistinguishable from the user's.
+-// - The discard is a canvas hit-test with no DOM element, so it needs a
+-//   pixel position — see [`probe_hand_geometry`].
+-
+-/// Slots in the client's action menu. The client builds this menu itself
+-/// from the server's `t` bitmask, and the slot number *is* the meaning.
+-pub mod menu {
+-    pub const TSUMO_AGARI: u8 = 0;
+-    pub const RON: u8 = 1;
+-    pub const RIICHI: u8 = 2;
+-    pub const KYUUSHU: u8 = 3;
+-    pub const PASS: u8 = 4;
+-    /// 5..=9 — kita (sanma), one per distinct North the client offers.
+-    pub const KITA_FIRST: u8 = 5;
+-    /// 10..=12 — ankan / kakan candidates.
+-    pub const KAN_FIRST: u8 = 10;
+-    pub const DAIMINKAN: u8 = 13;
+-    /// The pon, spending the red five if the hand holds one. Always drawn
+-    /// when a pon is on offer — the client's builder writes it for all three
+-    /// shapes of holding (two plain copies, red + plain, or the red of a
+-    /// three-copy set).
+-    pub const PON: u8 = 15;
+-    /// The pon that *keeps* the red five out of the meld, drawn only when
+-    /// there is a choice to make: exactly one red copy and two plain ones.
+-    /// It holds the two plain copies.
+-    pub const PON_KEEP_RED: u8 = 14;
+-    /// 16..=21 — chi, in pairs running called-tile-lowest, -middle,
+-    /// -highest. The odd slot of each pair spends no red five; the even one
+-    /// below it does. Unlike pon, either can be drawn without the other:
+-    /// which exist is decided per shape by which copies the hand holds.
+-    pub const CHI_FIRST: u8 = 16;
+-}
+-
+-/// CSS selector for one action button.
+-pub fn action_button_selector(slot: u8) -> String {
+-    format!(r#"button.s7[name="c22-{slot}"]"#)
+-}
+-
+-/// Which action buttons the client is currently showing, in document order.
+-///
+-/// The client rebuilds this set on every decision window, so it is the
+-/// authoritative list of what may be pressed right now — better than
+-/// re-deriving the menu from the `t` bitmask and hoping the two agree.
+-///
+-/// Left in the client's own order rather than sorted: it renders highest slot
+-/// first, and seeing that in a log is what tells you a selector list was
+-/// resolved the wrong way round.
+-pub async fn list_action_buttons(page: &Page) -> Result<Vec<u8>> {
+-    let expr = "(()=>Array.from(document.querySelectorAll('button.s7[name^=\"c22-\"]'))\
+-                .map(b=>parseInt(b.getAttribute('name').slice(4),10))\
+-                .filter(n=>!isNaN(n)))()";
+-    let result = page
+-        .evaluate(expr)
+-        .await
+-        .context("CDP evaluate action button list")?;
+-    let value = result
+-        .value()
+-        .cloned()
+-        .unwrap_or(serde_json::Value::Array(vec![]));
+-    Ok(serde_json::from_value::<Vec<u8>>(value).unwrap_or_default())
+-}
+-
+-/// Dispatch a real click on the first of `selectors` the page actually has.
+-///
+-/// The list is a *preference* order, and it has to be honoured as one: the
+-/// client appends its buttons in **descending** slot number
+-/// (`Object.keys(k).sort((a,n)=>n-a)`), so a single comma-joined selector
+-/// would resolve through `querySelector`'s document order and hand back the
+-/// highest-numbered match — the opposite of what a caller listing
+-/// "this one, or that one" means.
+-///
+-/// Returns `Ok(false)` when none match — the window closed while we were
+-/// thinking, or the client never offered any of them. Callers report that as
+-/// a skipped action rather than pressing something else.
+-pub async fn click_dom(page: &Page, selectors: &[String]) -> Result<bool> {
+-    let literal = serde_json::to_string(selectors).context("encode selectors as JS literal")?;
+-    let expr = format!(
+-        "(()=>{{for(const s of {literal}){{const e=document.querySelector(s);\
+-          if(e){{e.click();return true;}}}}return false;}})()"
+-    );
+-    let result = page
+-        .evaluate(expr)
+-        .await
+-        .context("CDP evaluate DOM click")?;
+-    Ok(result.value().and_then(|v| v.as_bool()).unwrap_or(false))
+-}
+-
+-/// Is the client taking input yet?
+-///
+-/// The client's turn clock and its highlight box are raised by the same call
+-/// (`Ub.O`), at the end of the animation for whatever opened the window — so
+-/// the box appearing *is* "animation finished, clock started". Frame arrival
+-/// is not: the server can deliver several seats' actions at once and the
+-/// client will spend seconds animating them.
+-pub async fn turn_clock_running(page: &Page) -> Result<bool> {
+-    let expr = "(()=>{for(const d of document.querySelectorAll('div')){\
+-        const s=d.style; if(s.position!=='fixed'||s.display==='none')continue;\
+-        const c=d.firstElementChild;\
+-        if(!c||!c.classList||!c.classList.contains('ts2'))continue;\
+-        const r=d.getBoundingClientRect();\
+-        if(r.width>0&&r.height>0)return true;}\
+-      return false;})()";
+-    let result = page
+-        .evaluate(expr)
+-        .await
+-        .context("CDP evaluate turn clock probe")?;
+-    Ok(result.value().and_then(|v| v.as_bool()).unwrap_or(false))
+-}
+-
+-/// Discard `tile_index` through the client's own handler.
+-///
+-/// `Ok(false)` means the client script was never instrumented, so the handler
+-/// is not reachable — reported as a skipped action rather than fumbled into a
+-/// click at a guessed position.
+-pub async fn discard_tile(page: &Page, tile_index: u32) -> Result<bool> {
+-    let expr = crate::autoplay::tenhou::inject::discard_expression(tile_index);
+-    let result = page.evaluate(expr).await.context("CDP evaluate discard")?;
+-    Ok(result.value().and_then(|v| v.as_str()) == Some("ok"))
+-}
+-
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+ 
+-    #[test]
+-    fn selector_names_the_menu_slot() {
+-        assert_eq!(
+-            action_button_selector(menu::PASS),
+-            r#"button.s7[name="c22-4"]"#
+-        );
+-        assert_eq!(
+-            action_button_selector(menu::RIICHI),
+-            r#"button.s7[name="c22-2"]"#
+-        );
+-    }
+-
+-    /// A selector containing quotes must not break out of the JS literal.
+-    #[test]
+-    fn selector_is_escaped_into_the_expression() {
+-        let literal = serde_json::to_string(r#"button.s7[name="c22-4"]"#).unwrap();
+-        assert!(literal.contains(r#"\"c22-4\""#));
+-    }
+-
+     fn png_of(width: u32, height: u32, rgba: [u8; 4]) -> Vec<u8> {
+         let mut out = Vec::new();
+         {
+diff --git a/src/autoplay/context.rs b/src/autoplay/context.rs
+index de6bc4d..50b6e67 100644
+--- a/src/autoplay/context.rs
++++ b/src/autoplay/context.rs
+@@ -60,16 +60,6 @@ pub struct AutoplayContext {
+     /// open the player's profile in the game and close it again, for the
+     /// game's statistics of them (see `next_game`).
+     pub profile_refresh: Arc<tokio::sync::Notify>,
+-    /// Tenhou's hand at tile-index resolution plus its current decision
+-    /// window, written by the Tenhou bridge (see `autoplay::tenhou_state`).
+-    /// Read by the Tenhou autoplay planner, which encodes a client frame
+-    /// rather than synthesising clicks.
+-    pub tenhou_state: crate::autoplay::tenhou_state::SharedTenhouState,
+-    /// Frame injection channel for platforms whose client is not a browser
+-    /// page (Riichi City): the manager sends built wire frames, the MITM
+-    /// proxy's client→server relay transmits them. The `in_game` gate is
+-    /// maintained by the Riichi City bridge. See `autoplay::inject`.
+-    pub inject: crate::autoplay::inject::SharedInjectBus,
+     /// Where the next-game flow is between games (resting, queuing), written
+     /// by `autoplay::next_game` and forwarded to the frontend as
+     /// `next-game-status`. A `watch`, so the current value can also be read
+diff --git a/src/autoplay/majsoul/mod.rs b/src/autoplay/majsoul/mod.rs
+index 51dee00..533b1c0 100644
+--- a/src/autoplay/majsoul/mod.rs
++++ b/src/autoplay/majsoul/mod.rs
+@@ -833,7 +833,6 @@ mod tests {
+             budget: None,
+             probs: None,
+             delay_script: None,
+-            tenhou: None,
+         }
+     }
+ 
+diff --git a/src/autoplay/manager.rs b/src/autoplay/manager.rs
+index e6a9014..d621780 100644
+--- a/src/autoplay/manager.rs
++++ b/src/autoplay/manager.rs
+@@ -16,18 +16,14 @@
+ use crate::autoplay::cdp_input::{dispatch_click_shaped_guarded, evaluate_canvas_layout};
+ use crate::autoplay::resize::{fits_viewport, LAYOUT_POLL};
+ use crate::autoplay::context::{AutoplayContext, CanvasRect};
+-use crate::autoplay::inject::InjectFrame;
+ use crate::autoplay::majsoul::MajsoulAutoplay;
+ use crate::autoplay::platform::{ActionContext, PlatformAutoplay, Step};
+-use crate::autoplay::riichi_city::RiichiCityAutoplay;
+-use crate::autoplay::tenhou::TenhouAutoplay;
+ use crate::autoplay::verify::InputTicket;
+ use crate::bot::BotResponse;
+ use crate::config::AppConfig;
+ use crate::event_bus::{BotResponseBus, MjaiBus, NotifyBus};
+ use crate::game_state::tracker::GameTracker;
+ use crate::schema::MjaiEvent;
+-use chromiumoxide::page::Page;
+ use riichienv_core::action::Action;
+ use riichienv_core::state::legal_actions::GameStateLegalActions;
+ use riichienv_core::state_3p::legal_actions::GameState3PLegalActions;
+@@ -62,12 +58,9 @@ pub struct AutoplayManager {
+     notify: NotifyBus,
+     /// One implementation per supported platform, selected per decision from
+     /// the live config so a platform switch takes effect without a restart.
+-    /// Majsoul synthesises clicks; Tenhou encodes a client frame.
++    /// Majsoul synthesises clicks on the game canvas. A new platform adds its
++    /// own field here and an arm in `handle_bot_response`.
+     majsoul: MajsoulAutoplay,
+-    tenhou: TenhouAutoplay,
+-    /// Riichi City: no page to click — plans a protocol frame the proxy
+-    /// transmits (see `autoplay::inject`).
+-    riichi: RiichiCityAutoplay,
+     state: ManagerState,
+     /// User Lua delay policy (hot-reloaded from disk; see
+     /// `autoplay::delay::script`).
+@@ -95,10 +88,6 @@ struct ManagerState {
+     /// tsumo/dahai updates, and is available from the very first event
+     /// rather than waiting for the first successful `handle_bot_response`.
+     cached_our_seat: Option<u8>,
+-    /// Tenhou: the decision window we last acted on, so the extra bot
+-    /// responses that arrive for the same one are dropped before they are
+-    /// planned rather than after.
+-    acted_window: Option<Instant>,
+ }
+ 
+ impl AutoplayManager {
+@@ -117,8 +106,6 @@ impl AutoplayManager {
+             mjai_bus,
+             notify,
+             majsoul: MajsoulAutoplay::new(),
+-            tenhou: TenhouAutoplay::new(),
+-            riichi: RiichiCityAutoplay::new(),
+             state: ManagerState::default(),
+             delay_script: crate::autoplay::delay::ScriptHost::default(),
+             config_dir,
+@@ -130,21 +117,6 @@ impl AutoplayManager {
+         let mut bot_rx = response_bus.subscribe();
+         let mut mjai_rx = self.mjai_bus.subscribe();
+         info!("autoplay manager started");
+-        // The round-advance watcher runs on its own subscription: at hand
+-        // end the plan loop is busy draining stale plans and the OK press
+-        // must not inherit that delay.
+-        let advance_cfg = self.cfg.clone();
+-        let advance_inject = self.ctx.inject.clone();
+-        let advance_bus = self.mjai_bus.clone();
+-        tauri::async_runtime::spawn(async move {
+-            crate::autoplay::riichi_city::round_advance::round_advance_watcher(
+-                advance_cfg,
+-                advance_inject,
+-                advance_bus,
+-            )
+-            .await;
+-        });
+-
+         // The next-game flow is likewise its own task, on its own mjai
+         // subscription: a run takes the best part of a minute of waiting on
+         // the client, none of which the plan loop should sit through.
+@@ -200,13 +172,6 @@ impl AutoplayManager {
+         let platform_kind = cfg_guard.platform.kind;
+         drop(cfg_guard);
+ 
+-        // Tenhou's planner needs the bridge's hand at Tenhou tile-index
+-        // resolution; the slot stays empty on every other platform.
+-        let tenhou_state = self.ctx.tenhou_state.read().ok().and_then(|g| g.clone());
+-        // The window we plan against, kept as its own identity for the
+-        // post-delay staleness check (see `tenhou_window_moved`).
+-        let planned_window = tenhou_state.as_ref().and_then(|s| s.window);
+-
+         // Snapshot the server time budget for the current decision window
+         // (written by the Majsoul bridge; None off-Majsoul or pre-game) and
+         // normalize the bot's confidence metadata. Both feed the delay
+@@ -274,27 +239,11 @@ impl AutoplayManager {
+             budget,
+             probs,
+             delay_script: self.delay_script.script(),
+-            tenhou: tenhou_state.as_ref(),
+         };
+ 
+         let platform: &dyn PlatformAutoplay = match platform_kind {
+-            crate::config::Platform::Tenhou => &self.tenhou,
+-            crate::config::Platform::RiichiCity => &self.riichi,
+-            _ => &self.majsoul,
++            crate::config::Platform::Majsoul => &self.majsoul,
+         };
+-        // Every reply that gets here is one the engine asked for: the bot
+-        // manager only reacts where our seat can act (`bot::manager`), so a
+-        // `None` means a decline and not "nothing to say". Belt and braces
+-        // all the same — one window is answered once. A second reply for it
+-        // is at best a wasted press and at worst one aimed at whatever
+-        // replaced it.
+-        if let Some(w) = planned_window {
+-            if self.state.acted_window == Some(w.opened_at) {
+-                debug!("autoplay: already acted on this window; ignoring extra bot reply");
+-                return;
+-            }
+-        }
+-
+         let plan = platform.plan(&action_ctx);
+         if plan.steps.is_empty() {
+             return;
+@@ -305,9 +254,7 @@ impl AutoplayManager {
+             plan.steps.len(),
+         );
+ 
+-        // Only a click needs to know where the canvas is. A plan built of
+-        // `Send` steps talks to the page's socket and would otherwise be
+-        // held hostage by a rect query it never uses.
++        // Only a click needs to know where the canvas is.
+         let needs_canvas = plan.steps.iter().any(|s| matches!(s, Step::Click { .. }));
+         let rect = if needs_canvas {
+             // Cache + TTL. If we can't resolve one, drop the click — the page
+@@ -337,134 +284,12 @@ impl AutoplayManager {
+         // `Reach.pai`), so the reach action alone identifies it.
+         let declares_reach = matches!(resp.action, MjaiEvent::Reach { .. });
+ 
+-        if let Some(w) = planned_window {
+-            self.state.acted_window = Some(w.opened_at);
+-        }
+-
+-        // Riichi City plans are [Sleep, SendFrame]: run them as their own
+-        // task instead of inline. Inline execution serialized every
+-        // decision's sleeps, window waits, and verify pauses, so queued
+-        // plans stacked — measured injections drifting 2→17s later as a
+-        // session progressed. The task gates its send on the identity of
+-        // the decision window it was planned against (see
+-        // `execute_riichi_frame`), so parallel tasks cannot send into a
+-        // later window by mistake.
+-        if platform_kind == crate::config::Platform::RiichiCity {
+-            let mut sleep_ms = 0;
+-            let mut frame: Option<Vec<u8>> = None;
+-            for step in &plan.steps {
+-                match step {
+-                    Step::Sleep { duration_ms } => sleep_ms = *duration_ms,
+-                    Step::SendFrame(bytes) => frame = Some(bytes.clone()),
+-                    other => warn!("autoplay: unexpected riichi plan step {other:?}"),
+-                }
+-            }
+-            let Some(frame) = frame else {
+-                return;
+-            };
+-            let inject = self.ctx.inject.clone();
+-            let verify_input_ms = cfg.verify_input_ms;
+-            let retries = cfg.click_retries;
+-            let action = resp.action.clone();
+-            let window_open_at_plan = inject.window_is_open();
+-            let window_at_plan = inject.window_opened_at();
+-            let plan_created = Instant::now();
+-            tauri::async_runtime::spawn(async move {
+-                execute_riichi_frame(
+-                    sleep_ms as u64,
+-                    frame,
+-                    action,
+-                    inject,
+-                    verify_input_ms,
+-                    retries,
+-                    window_open_at_plan,
+-                    window_at_plan,
+-                    plan_created,
+-                )
+-                .await;
+-            });
+-            return;
+-        }
+-
+         let mut window_checked = false;
+         for step in &plan.steps {
+             match step {
+                 Step::Sleep { duration_ms } => {
+                     tokio::time::sleep(Duration::from_millis(*duration_ms as u64)).await;
+                 }
+-                Step::AwaitReady { timeout_ms } => {
+-                    let page_guard = self.ctx.page.read().await;
+-                    let Some(page) = page_guard.as_ref() else {
+-                        warn!("autoplay: no page handle — cannot wait for the client");
+-                        return;
+-                    };
+-                    if !Self::await_turn_ready(page, *timeout_ms).await {
+-                        return;
+-                    }
+-                }
+-                Step::DomClick { selectors, label } => {
+-                    if self.tenhou_window_moved(planned_window) {
+-                        warn!(
+-                            "autoplay: decision window closed mid-delay — dropping stale {label}"
+-                        );
+-                        return;
+-                    }
+-                    let page_guard = self.ctx.page.read().await;
+-                    let Some(page) = page_guard.as_ref() else {
+-                        warn!("autoplay: no page handle — cannot press {label}");
+-                        return;
+-                    };
+-                    // The client only renders the buttons it is currently
+-                    // offering, so a selector that matches nothing means the
+-                    // decision resolved while we were thinking. Report it and
+-                    // stop rather than pressing something else.
+-                    // The buttons exist only between the end of the
+-                    // client's animation for the triggering frame and
+-                    // whatever resolves the window, and neither edge is
+-                    // observable from here — a single look loses the race
+-                    // either way. Wait for the element instead, bounded by
+-                    // what is left of the turn.
+-                    match self.press_when_offered(page, selectors, label).await {
+-                        true => {}
+-                        false => return,
+-                    }
+-                }
+-                Step::Discard { tile_index } => {
+-                    // The client's discard handler applies locally whether or
+-                    // not it is our turn — its own UI only reaches it while
+-                    // one is — so a stale call desyncs the board, not just
+-                    // wastes a frame. The riichi plan is the exception: its
+-                    // own button press replaces the window (the server acks
+-                    // the declaration and the bridge re-opens it), and the
+-                    // tile it owes is still this plan's to throw.
+-                    if discard_needs_window_guard(&resp.action)
+-                        && self.tenhou_window_moved(planned_window)
+-                    {
+-                        warn!(
+-                            "autoplay: decision window closed mid-delay — dropping stale discard"
+-                        );
+-                        return;
+-                    }
+-                    let page_guard = self.ctx.page.read().await;
+-                    let Some(page) = page_guard.as_ref() else {
+-                        warn!("autoplay: no page handle — cannot discard");
+-                        return;
+-                    };
+-                    match crate::autoplay::cdp_input::discard_tile(page, *tile_index).await {
+-                        Ok(true) => info!("autoplay: discarded tile index {tile_index}"),
+-                        Ok(false) => {
+-                            warn!(
+-                                "autoplay: the client script was not instrumented, so its \
+-                                 discard handler is unreachable; skipping"
+-                            );
+-                            return;
+-                        }
+-                        Err(e) => {
+-                            warn!("autoplay: discard failed: {e:#}");
+-                            return;
+-                        }
+-                    }
+-                }
+                 Step::Click { x_norm, y_norm } => {
+                     let Some(planned_rect) = rect else {
+                         warn!("autoplay: click step with no canvas rect; skipping");
+@@ -535,9 +360,6 @@ impl AutoplayManager {
+                         }
+                     }
+                 }
+-                // Riichi City SendFrames never reach this loop — they are
+-                // spawned above as per-decision tasks.
+-                Step::SendFrame(_) => unreachable!("riichi frames run as tasks"),
+             }
+         }
+ 
+@@ -545,10 +367,8 @@ impl AutoplayManager {
+         // success like any other — the page dispatched the events and the
+         // engine ignored them — so the proof has to come from the client's
+         // own uplink.
+-        // Only canvas clicks need proving. The Tenhou steps run the client's
+-        // own handlers — a DOM press or its discard call either resolved or
+-        // reported that it did not, with no swallowed-input case in between —
+-        // and `rect` is `None` for a plan built of those, which skips this.
++        // Only canvas clicks need proving; `rect` is `None` for a plan with
++        // none, which skips this.
+         if let (true, Some(rect)) = (cfg.verify_input_ms > 0, rect) {
+             // What counts as proof. A discard plan is proven by any input.
+             // Every other plan pressed action buttons, and for those a
+@@ -621,114 +441,6 @@ impl AutoplayManager {
+         }
+     }
+ 
+-    /// Wait until the client is taking input, or give up.
+-    ///
+-    /// The turn does not begin when the frame arrives. Tenhou's server sends
+-    /// as fast as the seats answer — against instant opponents that means
+-    /// three seats' actions in one burst — and the client then animates them
+-    /// for seconds before drawing its buttons and starting its clock. Timing
+-    /// anything from frame arrival times it from the wrong instant, which is
+-    /// why fixed delays kept landing either side of the window.
+-    ///
+-    /// The client raises its clock display and its highlight together, so the
+-    /// highlight appearing is the readiness signal.
+-    async fn await_turn_ready(page: &Page, timeout_ms: u32) -> bool {
+-        const POLL_INTERVAL: Duration = Duration::from_millis(120);
+-        let deadline = Instant::now() + Duration::from_millis(timeout_ms as u64);
+-        let started = Instant::now();
+-        loop {
+-            match crate::autoplay::cdp_input::turn_clock_running(page).await {
+-                Ok(true) => {
+-                    debug!(
+-                        "autoplay: client ready after {}ms",
+-                        started.elapsed().as_millis()
+-                    );
+-                    return true;
+-                }
+-                Ok(false) => {}
+-                Err(e) => {
+-                    warn!("autoplay: readiness probe failed: {e:#}");
+-                    return false;
+-                }
+-            }
+-            if Instant::now() >= deadline {
+-                warn!(
+-                    "autoplay: client never started its clock within {timeout_ms}ms; \
+-                     skipping this decision"
+-                );
+-                return false;
+-            }
+-            tokio::time::sleep(POLL_INTERVAL).await;
+-        }
+-    }
+-
+-    /// Press `selector` as soon as the client offers it.
+-    ///
+-    /// A button is only in the DOM between the end of the client's animation
+-    /// for the frame that opened the window and whatever closes it. Neither
+-    /// edge is visible from here and the gap moves with animation length, so
+-    /// a single `querySelector` races it — the first live run pressed
+-    /// successfully three times and missed four, all with the client offering
+-    /// nothing at the instant we looked. Polling turns that race into a
+-    /// bounded wait.
+-    async fn press_when_offered(&self, page: &Page, selectors: &[String], label: &str) -> bool {
+-        const POLL_INTERVAL: Duration = Duration::from_millis(120);
+-        const WAIT_BUDGET: Duration = Duration::from_millis(2_400);
+-
+-        let deadline = Instant::now() + WAIT_BUDGET;
+-        let mut attempts = 0u32;
+-        loop {
+-            attempts += 1;
+-            match crate::autoplay::cdp_input::click_dom(page, selectors).await {
+-                Ok(true) => {
+-                    info!("autoplay: pressed {label} ({selectors:?}) after {attempts} look(s)");
+-                    return true;
+-                }
+-                Ok(false) => {}
+-                Err(e) => {
+-                    warn!("autoplay: pressing {label} failed: {e:#}");
+-                    return false;
+-                }
+-            }
+-            if Instant::now() >= deadline {
+-                let offered = crate::autoplay::cdp_input::list_action_buttons(page).await;
+-                warn!(
+-                    "autoplay: {label} button ({selectors:?}) never appeared in {:?}; \
+-                     client is offering slots {offered:?} (its own order: highest first)",
+-                    WAIT_BUDGET
+-                );
+-                return false;
+-            }
+-            tokio::time::sleep(POLL_INTERVAL).await;
+-        }
+-    }
+-
+-    /// Has the Tenhou decision window been replaced since we planned?
+-    ///
+-    /// The delay model sleeps for seconds, and a window can resolve in that
+-    /// time — a claim we declined, or simply the next player acting. Acting on
+-    /// the stale plan then answers a decision that is already over. The
+-    /// window's `opened_at` is its identity, so a slot no longer holding the
+-    /// same instant means what we planned for is gone.
+-    ///
+-    /// `None` planned means we never had a window to go stale (other
+-    /// platforms), so nothing is dropped.
+-    fn tenhou_window_moved(
+-        &self,
+-        planned: Option<crate::autoplay::tenhou_state::DecisionWindow>,
+-    ) -> bool {
+-        let Some(planned) = planned else {
+-            return false;
+-        };
+-        let current = self
+-            .ctx
+-            .tenhou_state
+-            .read()
+-            .ok()
+-            .and_then(|g| g.as_ref().and_then(|s| s.window));
+-        current.map(|w| w.opened_at) != Some(planned.opened_at)
+-    }
+-
+     /// Wait for the client's input command; press again if it never came.
+     ///
+     /// Retrying is bounded and gated on the decision window still being the
+@@ -751,11 +463,7 @@ impl AutoplayManager {
+             .iter()
+             .filter_map(|s| match s {
+                 Step::Click { x_norm, y_norm } => Some((*x_norm, *y_norm)),
+-                Step::Sleep { .. }
+-                | Step::DomClick { .. }
+-                | Step::Discard { .. }
+-                | Step::AwaitReady { .. }
+-                | Step::SendFrame(_) => None,
++                Step::Sleep { .. } => None,
+             })
+             .collect();
+         if clicks.is_empty() {
+@@ -1089,21 +797,6 @@ impl AutoplayManager {
+     }
+ }
+ 
+-/// Does a `Step::Discard` for this action require the decision window it
+-/// was planned against to still be open?
+-///
+-/// Everything but a riichi does: the window's identity is how a discard that
+-/// out-waited its turn — the client timed out and threw for us, or a human
+-/// beat the bot to it — is told apart from one that is still owed. A riichi
+-/// plan cannot use that test, because passing its own declaration button is
+-/// what replaces the window (the server acks with `REACH step=1` and the
+-/// bridge re-opens it for the tile), so the move is expected rather than
+-/// evidence of staleness — and the tile must still go out or the client sits
+-/// on its clock and times the hand out.
+-fn discard_needs_window_guard(action: &MjaiEvent) -> bool {
+-    !matches!(action, MjaiEvent::Reach { .. })
+-}
+-
+ /// Which clicks to press again on retry `attempt` (0-based).
+ ///
+ /// In a multi-click plan — a chi/pon/kan whose candidate row needs
+@@ -1136,157 +829,6 @@ fn retry_hold_ms(base: u32, attempt: u32) -> u32 {
+     base.saturating_mul(attempt + 2).min(2_000)
+ }
+ 
+-/// How long an action planned with no window open may wait for its window.
+-/// Own-turn actions trail the deal animation by seconds; claim offers
+-/// trail their discard broadcast by milliseconds, so a tight bound keeps
+-/// a timed-out claim from ever landing in the next window.
+-fn future_window_grace(action: &MjaiEvent) -> Duration {
+-    match action {
+-        MjaiEvent::Dahai { .. }
+-        | MjaiEvent::Reach { .. }
+-        | MjaiEvent::Ryukyoku { deltas: None } => Duration::from_secs(15),
+-        _ => Duration::from_secs(3),
+-    }
+-}
+-
+-/// Execute one Riichi City decision off the plan loop: sleep the (already
+-/// clamped) think time, wait for OUR decision window, hold the minimum
+-/// visible think, send, and verify the server's ack — retrying the send if
+-/// no ack lands.
+-///
+-/// Parallel tasks are safe because each gates its send on the *identity*
+-/// of the window it was planned against (`window_opened_at`): the window
+-/// that was open when the plan was created, or — for own-turn actions —
+-/// the first window to open after planning. A task whose window resolved
+-/// while it slept aborts instead of sending into whatever window is open
+-/// now.
+-#[allow(clippy::too_many_arguments)]
+-async fn execute_riichi_frame(
+-    sleep_ms: u64,
+-    frame: Vec<u8>,
+-    action: MjaiEvent,
+-    inject: crate::autoplay::inject::SharedInjectBus,
+-    verify_input_ms: u32,
+-    retries: u32,
+-    window_open_at_plan: bool,
+-    window_at_plan: Option<Instant>,
+-    plan_created: Instant,
+-) {
+-    if !inject.in_game() {
+-        debug!("autoplay: dropping frame for {action:?} — no game in progress");
+-        return;
+-    }
+-
+-    // Resolve our window identity.
+-    let identity = if window_open_at_plan {
+-        // The window open at planning time is ours; require it to still
+-        // be the one open.
+-        let Some(id) = window_at_plan else {
+-            return;
+-        };
+-        id
+-    } else {
+-        // Planned before any window opened: either an own-turn action
+-        // whose window trails the deal animation, or a claim whose offer
+-        // frame lost the race against the bot response (measured:
+-        // responses can be planned milliseconds before the bridge
+-        // processes the offer). Wait for the first window to open after
+-        // planning, bounded per action kind — acting before the window
+-        // opens is rejected (rsp code 1).
+-        let deadline = plan_created + future_window_grace(&action);
+-        loop {
+-            if inject.window_is_open() {
+-                if let Some(opened) = inject.window_opened_at() {
+-                    if opened >= plan_created {
+-                        break opened;
+-                    }
+-                }
+-            }
+-            if Instant::now() >= deadline {
+-                debug!("autoplay: {action:?} window never opened; dropping");
+-                return;
+-            }
+-            tokio::time::sleep(Duration::from_millis(150)).await;
+-        }
+-    };
+-
+-    // Wait until our window is open.
+-    let deadline = Instant::now() + Duration::from_secs(15);
+-    while !(inject.window_is_open() && inject.window_opened_at() == Some(identity)) {
+-        if Instant::now() >= deadline
+-            || (inject.window_is_open() && inject.window_opened_at() != Some(identity))
+-        {
+-            debug!("autoplay: dropping stale {action:?} — the window moved on");
+-            return;
+-        }
+-        tokio::time::sleep(Duration::from_millis(150)).await;
+-    }
+-
+-    // Hold the humanizer's think time, measured from the WINDOW OPENING —
+-    // the Lua contract: delay_ms is what the server observes between
+-    // offering the decision and receiving the action. Anchoring to the
+-    // window (not the triggering event) is what keeps the dealer's
+-    // opening discard human-paced: the deal animation precedes the window
+-    // and must not eat the think. Capped well under the ~15s window;
+-    // floored so the timer is always visibly up before the send.
+-    const MIN_VISIBLE_THINK_MS: u64 = 2_000;
+-    const THINK_CAP_MS: u64 = 10_000;
+-    let target_ms = sleep_ms.clamp(MIN_VISIBLE_THINK_MS, THINK_CAP_MS);
+-    let elapsed_ms = identity.elapsed().as_millis() as u64;
+-    if elapsed_ms < target_ms {
+-        tokio::time::sleep(Duration::from_millis(target_ms - elapsed_ms)).await;
+-    }
+-    // The window may have resolved during the think.
+-    if !(inject.window_is_open() && inject.window_opened_at() == Some(identity)) {
+-        debug!("autoplay: dropping stale {action:?} — the window moved on");
+-        return;
+-    }
+-
+-    let ticket = inject.rsp_ticket();
+-    let mut acked = false;
+-    for attempt in 0..=retries {
+-        if !inject.send(InjectFrame {
+-            gameplay: true,
+-            bytes: frame.clone(),
+-        }) {
+-            warn!(
+-                "autoplay: no injection relay subscribed — is capture running? \
+-                   dropping frame for {action:?}"
+-            );
+-            return;
+-        }
+-        info!("autoplay: injected frame for {action:?} (attempt {attempt})");
+-        // The server's round trip is ~200ms; the floor keeps a short
+-        // verify_input_ms from spuriously retrying.
+-        let wait = u64::from(verify_input_ms.max(500));
+-        let deadline = Instant::now() + Duration::from_millis(wait);
+-        loop {
+-            if inject.rsp_since(ticket) {
+-                acked = true;
+-                break;
+-            }
+-            if Instant::now() >= deadline {
+-                break;
+-            }
+-            tokio::time::sleep(Duration::from_millis(50)).await;
+-        }
+-        if acked {
+-            break;
+-        }
+-        warn!("autoplay: no rsp_game_action within {wait}ms for {action:?} (attempt {attempt})");
+-    }
+-    if acked {
+-        let code = inject.last_rsp_code();
+-        if code != 0 {
+-            warn!("autoplay: the server rejected {action:?} (rsp code {code})");
+-        } else if retries > 0 {
+-            debug!("autoplay: rsp ok for {action:?}");
+-        }
+-    } else {
+-        warn!("autoplay: {action:?} was never answered by the server — the action did not happen");
+-    }
+-}
+-
+ /// Spawn point for the autoplay loop. Wired by `crate::lib::run` so the
+ /// `tauri::async_runtime` Tokio runtime is the host.
+ pub async fn run_autoplay_manager(
+@@ -1477,98 +1019,6 @@ mod tests {
+         assert_eq!(retry_hold_ms(u32::MAX, 5), 2_000, "no overflow");
+     }
+ 
+-    /// Regression (stale discard into a live board): the client's discard
+-    /// handler applies locally even when the turn is over, so a discard must
+-    /// be dropped once the window it was planned against is gone. The riichi
+-    /// plan is exempt — its own button press is what replaces the window,
+-    /// and the tile is still owed.
+-    #[test]
+-    fn a_discard_is_guarded_by_its_window_except_for_riichi() {
+-        let dahai = MjaiEvent::Dahai {
+-            actor: 0,
+-            pai: "1m".into(),
+-            tsumogiri: false,
+-        };
+-        assert!(discard_needs_window_guard(&dahai));
+-        let reach = MjaiEvent::Reach {
+-            actor: 0,
+-            pai: Some("2m".into()),
+-        };
+-        assert!(!discard_needs_window_guard(&reach));
+-    }
+-
+-    /// Own-turn actions wait out the deal animation (long grace); claim
+-    /// offers follow their discard within milliseconds, so their grace is
+-    /// tight — a timed-out claim must never land in the next window.
+-    #[test]
+-    fn future_window_grace_is_tight_for_claims() {
+-        let own = MjaiEvent::Dahai {
+-            actor: 0,
+-            pai: "1m".into(),
+-            tsumogiri: false,
+-        };
+-        assert_eq!(future_window_grace(&own), Duration::from_secs(15));
+-        let claim = MjaiEvent::Chi {
+-            actor: 0,
+-            target: 1,
+-            pai: "3p".into(),
+-            consumed: ["2p".into(), "4p".into()],
+-        };
+-        assert_eq!(future_window_grace(&claim), Duration::from_secs(3));
+-        assert_eq!(
+-            future_window_grace(&MjaiEvent::None),
+-            Duration::from_secs(3)
+-        );
+-        // Kyuushu rides our own first-turn draw, so it gets the own-turn
+-        // grace — not the claim-tight one.
+-        assert_eq!(
+-            future_window_grace(&MjaiEvent::Ryukyoku { deltas: None }),
+-            Duration::from_secs(15)
+-        );
+-    }
+-
+-    /// The window's `opened_at` is its identity: a slot holding a different
+-    /// instant — or nothing — means the plan is stale. No planned window
+-    /// (other platforms) never reports movement.
+-    #[test]
+-    fn tenhou_window_moved_tracks_the_slot() {
+-        use crate::autoplay::tenhou_state::{DecisionWindow, TenhouState};
+-        let m = make_manager();
+-        let w1 = DecisionWindow {
+-            ops: 0,
+-            opened_at: std::time::Instant::now(),
+-        };
+-        let put = |window| {
+-            *m.ctx.tenhou_state.write().unwrap() = Some(TenhouState {
+-                seat: 0,
+-                hand: vec![0],
+-                melds: Vec::new(),
+-                is_tsumo: true,
+-                window,
+-            });
+-        };
+-
+-        put(Some(w1));
+-        assert!(
+-            !m.tenhou_window_moved(Some(w1)),
+-            "same instant — still live"
+-        );
+-        assert!(
+-            !m.tenhou_window_moved(None),
+-            "nothing planned, nothing stale"
+-        );
+-
+-        put(None);
+-        assert!(m.tenhou_window_moved(Some(w1)), "window resolved — stale");
+-
+-        let w2 = DecisionWindow {
+-            ops: 8,
+-            opened_at: std::time::Instant::now(),
+-        };
+-        put(Some(w2));
+-        assert!(m.tenhou_window_moved(Some(w1)), "window replaced — stale");
+-    }
+-
+     /// Observer/replay mode: `StartGame` with `id: None` must not cache a
+     /// stale seat from a previous game.
+     #[test]
+diff --git a/src/autoplay/mod.rs b/src/autoplay/mod.rs
+index 644d76b..b24b846 100644
+--- a/src/autoplay/mod.rs
++++ b/src/autoplay/mod.rs
+@@ -6,23 +6,18 @@
+ //! availability is sourced from the riichi engine, not from the platform
+ //! protocol parser, so the same logic works across platforms.
+ //!
+-//! How a step reaches the game differs by platform, and the difference is
+-//! large enough to be worth stating up front:
++//! How a step reaches the game differs by platform. **Mahjong Soul** renders
++//! to a canvas and exposes nothing to script, so the only way in is
++//! synthesised mouse input at reconstructed coordinates. Everything expensive
++//! here exists because of that: coordinate tables, candidate-row index
++//! arithmetic, click verification and retry. Reach is two inputs — declare,
++//! then discard — taken from the bot's own `Reach { pai }` and performed in
++//! one plan; Mahjong Soul holds its reach popup open for the tile.
+ //!
+-//! - **Mahjong Soul** renders to a canvas and exposes nothing to script, so
+-//!   the only way in is synthesised mouse input at reconstructed coordinates.
+-//!   Everything expensive here exists because of that: coordinate tables,
+-//!   candidate-row index arithmetic, click verification and retry.
+-//! - **Tenhou** is HTML and script, so its own input path can be driven
+-//!   directly: its action buttons are DOM elements, and its discard handler
+-//!   takes a tile index. None of the above applies — nothing is aimed at a
+-//!   pixel, so nothing can miss one. (Writing frames onto the socket instead
+-//!   was tried and freezes the board; see [`tenhou`].)
+-//!
+-//! Reach is two inputs on both platforms — declare, then discard — and both
+-//! take the tile from the bot's own `Reach { pai }` and perform them in one
+-//! plan. Neither client acts on the declaration alone: Mahjong Soul holds its
+-//! reach popup open, and Tenhou sits on its clock until the tile arrives.
++//! Other games plug in the same way (a `PlatformAutoplay` impl plus whatever
++//! `Step` kinds their client needs); `_parked/other-games/` holds a DOM-driven
++//! web client (Tenhou) and a frame-injected native one (Riichi City) as worked
++//! examples, with the list of what to put back.
+ //!
+ //! Every response arriving here is a decision the riichi engine asked for —
+ //! `bot::manager` does not flush to the bot otherwise — so an `MjaiEvent::None`
+@@ -32,21 +27,14 @@
+ //! - [`context`] — shared state between the chromium capture backend
+ //!   and this manager (page handle + canvas rect cache).
+ //! - [`platform`] — `PlatformAutoplay` trait + the `Step` types
+-//!   (`Click` / `Sleep` / `AwaitReady` / `DomClick` / `Discard`).
++//!   (`Click` / `Sleep`).
+ //! - [`majsoul`] — the production Majsoul implementation: 16:9
+ //!   coordinate tables (ported from the Python autoplay in
+ //!   an earlier Python autoplay) + plan dispatch covering all mjai
+ //!   action types.
+-//! - [`tenhou`] — the Tenhou implementation: press the client's own action
+-//!   buttons, or call its discard handler with a tile index.
+-//!   [`tenhou::inject`] is what makes that handler reachable.
+-//! - [`tenhou_state`] — the bridge-written slot holding Tenhou's hand at
+-//!   tile-index resolution plus its current decision window, which is what
+-//!   lets an mjai tile string name a physical copy at all.
+ //! - [`cdp_input`] — chromiumoxide wrappers (`dispatch_click`,
+-//!   `evaluate_canvas_rect`, and the Tenhou DOM helpers: action-button
+-//!   selectors, the readiness probe, and the call into the injected
+-//!   discard handler).
++//!   `evaluate_canvas_rect`) and the screenshot reads the next-game flow
++//!   steers by.
+ //! - [`lobby`] / [`next_game`] — Majsoul only: start the next ranked game
+ //!   once one ends, steering by the client's own lobby uplink rather than by
+ //!   anything on screen.
+@@ -55,8 +43,6 @@
+ //! - [`verify`] — did the click land? Counts the client's own uplink
+ //!   input commands (bumped by the Majsoul bridge) so the manager can
+ //!   tell a click that registered from one the UI swallowed, and retry.
+-//!   Canvas clicks only — the Tenhou steps run the client's own handlers,
+-//!   which report their own failure.
+ //!
+ //! Entry point: [`manager::run_autoplay_manager`].
+ 
+@@ -64,7 +50,6 @@ pub mod budget;
+ pub mod cdp_input;
+ pub mod context;
+ pub mod delay;
+-pub mod inject;
+ pub mod lobby;
+ pub mod majsoul;
+ pub mod manager;
+@@ -72,9 +57,6 @@ pub mod next_game;
+ pub mod platform;
+ pub mod resize;
+ pub mod route;
+-pub mod riichi_city;
+-pub mod tenhou;
+-pub mod tenhou_state;
+ pub mod verify;
+ 
+ pub use budget::{BudgetSource, SharedTimeBudget, TimeBudget};
+diff --git a/src/autoplay/platform.rs b/src/autoplay/platform.rs
+index ef2b409..7fb0656 100644
+--- a/src/autoplay/platform.rs
++++ b/src/autoplay/platform.rs
+@@ -1,9 +1,10 @@
+ //! Platform-agnostic autoplay surface.
+ //!
+-//! `PlatformAutoplay` is the only thing `AutoplayManager` knows about —
+-//! by holding `Arc<dyn PlatformAutoplay>` it can drop in a Tenhou impl
+-//! later (DOM-based clicks or direct WS inject) without touching the
+-//! manager's bus subscription / timing logic.
++//! `PlatformAutoplay` is the only thing `AutoplayManager` knows about: a
++//! platform plans [`Step`]s from a bot decision, the manager runs them. A new
++//! game adds an impl and, if its client is not a canvas, new `Step` kinds with
++//! their executors (see `_parked/other-games/README.md` for two worked
++//! examples: a DOM-driven web client and a frame-injected native one).
+ 
+ use crate::autoplay::delay::{BudgetSnapshot, DecisionProbs};
+ use crate::config::{DelayModelConfig, MajsoulAutoplayConfig};
+@@ -23,42 +24,6 @@ pub enum Step {
+     /// pre-click "thinking" delay and the inter-click gap inside one
+     /// action.
+     Sleep { duration_ms: u32 },
+-    /// Click the first DOM element the page has out of `selectors`.
+-    ///
+-    /// Tenhou wires its own action buttons through a document-level click
+-    /// listener keyed on `name="c<handler>-<arg>"`, so dispatching a real
+-    /// click on one runs the client's own handler — the action is performed
+-    /// exactly as if the user had pressed it, with none of the coordinate
+-    /// guessing a canvas needs. `label` is for logs only.
+-    ///
+-    /// A list, because some actions are offered under more than one slot and
+-    /// which ones exist depends on the hand: the pon that keeps a red five
+-    /// out of the meld is only drawn when there is a red five to keep. The
+-    /// order is the caller's preference, not the document's.
+-    DomClick {
+-        selectors: Vec<String>,
+-        label: String,
+-    },
+-    /// Block until the client is ready to take input, then continue.
+-    ///
+-    /// Frame arrival is not the start of the turn. Tenhou's server can send
+-    /// several seats' actions at once — against millisecond-fast opponents it
+-    /// routinely does — while the client spends seconds animating them, and
+-    /// only then draws the buttons and starts its clock. Everything timed
+-    /// from frame arrival is timed from the wrong instant.
+-    AwaitReady { timeout_ms: u32 },
+-    /// Discard the tile with this Tenhou index (`0..=135`) through the
+-    /// client's own handler.
+-    ///
+-    /// Not a position: the client's discard entry point is addressed by tile,
+-    /// so it resolves the rest itself — including where the tile currently
+-    /// sits, which is why calls moving the hand cannot affect this.
+-    Discard { tile_index: u32 },
+-    /// Transmit a pre-built wire frame to the game server through the MITM
+-    /// proxy's injection channel (Riichi City: no browser page exists to
+-    /// click, so the action goes out as the client's own protocol frame).
+-    /// See `bridge::riichi_city::build` and `autoplay::inject`.
+-    SendFrame(Vec<u8>),
+ }
+ 
+ /// Everything the platform impl needs to translate one bot decision
+@@ -106,19 +71,14 @@ pub struct ActionContext<'a> {
+     /// User Lua delay policy, when loaded. Consulted by the delay model;
+     /// on any script failure the built-in policy runs instead.
+     pub delay_script: Option<&'a crate::autoplay::delay::DelayScript>,
+-    /// Tenhou only: the bridge's hand at Tenhou tile-index resolution plus
+-    /// the current decision window. `None` on other platforms, and on
+-    /// Tenhou before the first parsed frame.
+-    pub tenhou: Option<&'a crate::autoplay::tenhou_state::TenhouState>,
+ }
+ 
+ /// Output of `PlatformAutoplay::plan`: the click sequence to execute.
+ ///
+ /// The riichi declaring discard is always resolved before the plan is
+ /// built — the bot fills `Reach.pai` (natively or via the manager's
+-/// autoplay reach follow-up, see `bot::manager` and #257) — so both
+-/// platforms declare and discard in a single plan; there is no
+-/// bus-injection follow-up path.
++/// autoplay reach follow-up, see `bot::manager` and #257) — so a plan
++/// declares and discards in one go.
+ #[derive(Debug, Clone, PartialEq, Default)]
+ pub struct PlanResult {
+     pub steps: Vec<Step>,
+diff --git a/src/bridge/README.md b/src/bridge/README.md
+index e5d1b46..b394fee 100644
+--- a/src/bridge/README.md
++++ b/src/bridge/README.md
+@@ -44,7 +44,6 @@ autoplay needs facts only the protocol parser sees:
+ |---|---|---|
+ | `time_budget` | Majsoul | The server's per-decision-window time grant (`OptionalOperationList.time_fixed/time_add`). |
+ | `input_watch` | Majsoul | A counter of the client's own uplink input commands, so a click can be told from one the UI swallowed. |
+-| `tenhou_state` | Tenhou | The hand at Tenhou tile-index resolution plus the current decision window — what makes a client frame encodable. |
+ 
+ Bundled into one struct so adding a platform's slot doesn't grow the argument
+ list of every constructor between here and the capture backend.
+@@ -57,6 +56,12 @@ list of every constructor between here and the capture backend.
+    `for_platform`.
+ 4. If the platform will support autoplay and its planner needs something only
+    the parser sees, add a field to `BridgeHooks` rather than a new parameter.
++5. The history tag (`schema::Platform`) and its `MatchInfo` variant already
++   exist for Tenhou and Riichi City; a new game adds its own.
++
++Two finished bridges for other games — Tenhou (plain JSON over WS) and Riichi
++City (JSON inside a 15-byte binary header) — are parked in
++`_parked/other-games/`, with their READMEs.
+ 
+ ## Existing bridges
+ 
+@@ -66,8 +71,3 @@ list of every constructor between here and the capture backend.
+   `majsoul/parser.rs` module docs for the 5-layer wire format. Protocol
+   layout follows the published Majsoul `liqi.proto` schema; no third-party
+   source code is copied.
+-- `tenhou/` — Tenhou (plain JSON over WS). Parses server frames into mjai, and
+-  implements `build` in the other direction — not on the autoplay path, which
+-  drives the client's own input instead. See `tenhou/README.md`.
+-- `riichi_city/` — Riichi City (JSON inside a 15-byte binary header).
+-  Observe-only. See `riichi_city/README.md`.
+diff --git a/src/bridge/mod.rs b/src/bridge/mod.rs
+index 68f0783..82d74bc 100644
+--- a/src/bridge/mod.rs
++++ b/src/bridge/mod.rs
+@@ -6,12 +6,8 @@
+ 
+ pub mod majsoul;
+ pub mod redact;
+-pub mod riichi_city;
+-pub mod tenhou;
+ 
+ pub use majsoul::MajsoulBridge;
+-pub use riichi_city::RiichiCityBridge;
+-pub use tenhou::TenhouBridge;
+ 
+ use crate::{
+     logger::{FlowLogger, Session},
+@@ -41,8 +37,7 @@ impl Direction {
+ ///
+ /// `events` are the mjai events the frame translated into (zero or more).
+ /// `parsed` is the bridge's first-pass structured view of the frame —
+-/// Majsoul's decoded protobuf method+payload, Tenhou's `{tag, …}` JSON
+-/// dict — surfaced for the inspector so a developer can see what the
++/// Majsoul's decoded protobuf method+payload — surfaced for the inspector so a developer can see what the
+ /// bridge thought the frame meant. Bridges that can't decode a particular
+ /// frame (handshake, unsupported method, malformed payload) return `None`.
+ ///
+@@ -82,9 +77,8 @@ pub trait Bridge: Send {
+ /// Slots the autoplay layer shares with a bridge.
+ ///
+ /// Every field is optional and platform-specific: the chromium capture path
+-/// wires the browser-page slots (the MITM path has no `Page` handle), the
+-/// MITM path wires the frame-injection slot, and each bridge fills in the
+-/// subset its own autoplay needs.
++/// wires the browser-page slots (the MITM path has no `Page` handle), and each
++/// bridge fills in the subset its own autoplay needs.
+ /// Bundled into one struct so adding a platform's slot doesn't grow the
+ /// argument list of every constructor along the way.
+ #[derive(Clone, Default)]
+@@ -99,14 +93,8 @@ pub struct BridgeHooks {
+     /// next-game flow knows when to stop pressing and whether a stage worked
+     /// (see `autoplay::lobby`).
+     pub lobby_watch: Option<crate::autoplay::lobby::SharedLobbyWatch>,
+-    /// Tenhou: hand at Tenhou tile-index resolution plus the current decision
+-    /// window, needed to encode a client frame (see `autoplay::tenhou_state`).
+-    pub tenhou_state: Option<crate::autoplay::tenhou_state::SharedTenhouState>,
+-    /// Riichi City: frame-injection gate, maintained by the bridge between
+-    /// `cmd_enter_room` and `cmd_room_end` (see `autoplay::inject`).
+-    pub riichi_inject: Option<crate::autoplay::inject::SharedInjectBus>,
+     /// Frontend toast channel, for states a bridge must tell the user about
+-    /// that no mjai event can carry (Tenhou: a mid-hand rejoin pauses
++    /// that no mjai event can carry (e.g. a mid-hand rejoin that pauses
+     /// analysis until the next hand). Wired by both capture backends.
+     pub notify: Option<crate::event_bus::NotifyBus>,
+ }
+@@ -130,13 +118,5 @@ pub fn for_platform(
+                 .with_input_watch(hooks.input_watch)
+                 .with_lobby_watch(hooks.lobby_watch),
+         ),
+-        crate::config::Platform::Tenhou => Box::new(
+-            TenhouBridge::new(flow_log, session)
+-                .with_shared_state(hooks.tenhou_state)
+-                .with_notify(hooks.notify),
+-        ),
+-        crate::config::Platform::RiichiCity => {
+-            Box::new(RiichiCityBridge::new(flow_log, session).with_inject(hooks.riichi_inject))
+-        }
+     }
+ }
+diff --git a/src/capture/chromium/cdp.rs b/src/capture/chromium/cdp.rs
+index 4967670..fb57b2a 100644
+--- a/src/capture/chromium/cdp.rs
++++ b/src/capture/chromium/cdp.rs
+@@ -24,7 +24,7 @@ use crate::autoplay::AutoplayContext;
+ use crate::bridge::Direction;
+ use crate::capture::flow::{slugify, FlowBridges};
+ use crate::config::HttpCaptureConfig;
+-use crate::event_bus::{MjaiBus, NotifyBus};
++use crate::event_bus::MjaiBus;
+ use crate::inspector::annotate::{self, RequestView};
+ use crate::inspector::InspectorWriter;
+ use crate::schema::{
+@@ -73,9 +73,9 @@ fn decode_payload(b64: &str) -> Option<Vec<u8>> {
+ ///
+ /// CDP's `WebSocketFrame.payloadData` is shaped by the WS opcode (RFC 6455):
+ ///
+-/// - opcode `1` (text): the field is a **plain UTF-8 string**. Tenhou
+-///   uses this — frames look like `{"tag":"INIT",…}` and the heartbeat
+-///   `<Z/>`. We pass the bytes straight through; the bridge re-parses them.
++/// - opcode `1` (text): the field is a **plain UTF-8 string** (text-protocol
++///   games, e.g. JSON frames). We pass the bytes straight through; the bridge
++///   re-parses them.
+ /// - opcode `2` (binary): the field is a **base64-encoded string**.
+ ///   Majsoul uses this (length-prefixed protobuf).
+ /// - everything else (`0` continuation, `8` close, `9` ping, `10` pong):
+@@ -83,7 +83,7 @@ fn decode_payload(b64: &str) -> Option<Vec<u8>> {
+ ///
+ /// Splitting this out so the dispatch is unit-testable: prior to this
+ /// fix the inline branches only handled opcode 2, which silently dropped
+-/// every Tenhou frame on the chromium backend.
++/// every text frame on the chromium backend.
+ #[derive(Debug, PartialEq, Eq)]
+ enum FrameDecode {
+     Bytes(Vec<u8>),
+@@ -129,10 +129,8 @@ pub fn page_handle_cleared_by_removal(owner: Option<&str>, removed: &[String]) -
+ 
+ /// Hosts whose WebSocket creation hands the page handle to autoplay.
+ /// `maj-soul.com` covers en/cn/jp portals; `mahjongsoul.com` is the
+-/// Yostar mirror. `tenhou.net` and `mjv.jp` are Tenhou's portal and its
+-/// game gateway respectively — Tenhou autoplay speaks on the page's own
+-/// socket, so it needs the same page handle.
+-const AUTOPLAY_HOST_HINTS: &[&str] = &["maj-soul.com", "mahjongsoul.com", "tenhou.net", "mjv.jp"];
++/// Yostar mirror. A new game's hosts go here.
++const AUTOPLAY_HOST_HINTS: &[&str] = &["maj-soul.com", "mahjongsoul.com"];
+ 
+ fn is_autoplay_target_url(ws_url: &str) -> bool {
+     AUTOPLAY_HOST_HINTS.iter().any(|h| ws_url.contains(h))
+@@ -155,7 +153,6 @@ pub async fn run(
+     autoplay: Option<Arc<AutoplayContext>>,
+     http_cfg: HttpCaptureConfig,
+     block_telemetry: bool,
+-    notify: NotifyBus,
+ ) -> Result<()> {
+     info!("CDP connecting to {endpoint}");
+     let (browser_owned, mut handler) = Browser::connect(endpoint)
+@@ -242,7 +239,6 @@ pub async fn run(
+                     autoplay.clone(),
+                     http_cfg.clone(),
+                     block_telemetry,
+-                    notify.clone(),
+                 )
+                 .await
+                 {
+@@ -275,31 +271,19 @@ pub async fn run(
+     Err(anyhow!("CDP loop terminated"))
+ }
+ 
+-/// URL of the script that carries the Tenhou client.
+-///
+-/// Versioned (`/4/1141.js`, reached through a redirect from `latest.js`), so
+-/// the pattern matches by shape rather than by version.
+-const TENHOU_CLIENT_URL_PATTERN: &str = "*tenhou.net/4/*.js";
+-
+ /// Requests to the Aliyun SLS web-tracking service, the analytics vendor the
+ /// game clients report through. Loose on purpose (`*` also spans `/`); the
+ /// host is checked exactly once a request is paused — see
+ /// [`is_telemetry_host`].
+ const TELEMETRY_URL_PATTERN: &str = "*.log.aliyuncs.com/*";
+ 
+-/// Ask the browser to hand us the Tenhou client script before the page runs
+-/// it, so it can be rewritten to expose its handler registry — and, with
+-/// `block_telemetry`, the game's analytics beacons before they are sent.
+-///
+-/// The script is paused at the *response* stage (we want the bytes); a
+-/// beacon at the *request* stage, so it never leaves the machine.
++/// With `block_telemetry`, ask the browser to hand us the game's analytics
++/// beacons before they are sent: paused at the *request* stage, so they never
++/// leave the machine. (A game whose client script must be rewritten on its way
++/// in adds a *response*-stage pattern here — see `_parked/other-games/`.)
+ async fn enable_interception(page: &Page, block_telemetry: bool) -> Result<()> {
+     use chromiumoxide::cdp::browser_protocol::fetch::{EnableParams, RequestPattern, RequestStage};
+-    let mut patterns = vec![RequestPattern {
+-        url_pattern: Some(TENHOU_CLIENT_URL_PATTERN.to_string()),
+-        resource_type: None,
+-        request_stage: Some(RequestStage::Response),
+-    }];
++    let mut patterns = Vec::new();
+     if block_telemetry {
+         patterns.push(RequestPattern {
+             url_pattern: Some(TELEMETRY_URL_PATTERN.to_string()),
+@@ -307,6 +291,9 @@ async fn enable_interception(page: &Page, block_telemetry: bool) -> Result<()> {
+             request_stage: Some(RequestStage::Request),
+         });
+     }
++    if patterns.is_empty() {
++        return Ok(());
++    }
+     let params = EnableParams {
+         patterns: Some(patterns),
+         handle_auth_requests: None,
+@@ -358,156 +345,6 @@ async fn answer_paused_request(
+     }
+ }
+ 
+-/// Reload the page if its client script slipped past the interceptor.
+-///
+-/// Attaching is racy by construction: the browser opens on the game URL and
+-/// we subscribe afterwards, so the client script is usually fetched — or
+-/// served from disk cache — before `Fetch.enable` takes effect. The
+-/// interceptor is then armed for a request that has already happened.
+-///
+-/// Reloading past the cache puts the script back through it. Done once, at
+-/// attach, so it lands on the lobby rather than mid-game; a page that already
+-/// carries the door is left alone, which is what keeps this from looping.
+-async fn reload_if_uninstrumented(page: &Page) -> Result<()> {
+-    use chromiumoxide::cdp::browser_protocol::page::ReloadParams;
+-
+-    let expr = format!(
+-        "(()=>{{try{{return !!window.{} || !/tenhou\\.net/.test(location.host);}}\
+-          catch(e){{return true}}}})()",
+-        crate::autoplay::tenhou::inject::EXPORT_GLOBAL
+-    );
+-    let done = page
+-        .evaluate(expr)
+-        .await
+-        .ok()
+-        .and_then(|r| r.value().and_then(|v| v.as_bool()))
+-        .unwrap_or(true);
+-    if done {
+-        return Ok(());
+-    }
+-    info!("CDP: re-loading the Tenhou client so it passes through the interceptor");
+-    let params = ReloadParams::builder().ignore_cache(true).build();
+-    page.execute(params).await.context("Page.reload")?;
+-    Ok(())
+-}
+-
+-/// Rewrite one paused response and let it through.
+-///
+-/// Every outcome continues the request — instrumentation that fails must cost
+-/// the discard path, never the page. A derivation failure is surfaced to the
+-/// user because it means the client changed shape and the pattern that finds
+-/// its handler registry needs revisiting; that is a report worth having.
+-async fn rewrite_paused_script(
+-    page: &Page,
+-    notify: &NotifyBus,
+-    request_id: chromiumoxide::cdp::browser_protocol::fetch::RequestId,
+-    url: &str,
+-) {
+-    use crate::autoplay::tenhou::inject;
+-    use chromiumoxide::cdp::browser_protocol::fetch::{
+-        ContinueRequestParams, FulfillRequestParams, GetResponseBodyParams,
+-    };
+-
+-    let passthrough = |id: chromiumoxide::cdp::browser_protocol::fetch::RequestId| {
+-        ContinueRequestParams::builder().request_id(id).build().ok()
+-    };
+-
+-    let body = match page
+-        .execute(GetResponseBodyParams::new(request_id.clone()))
+-        .await
+-    {
+-        Ok(r) => {
+-            let inner = r.result;
+-            if inner.base64_encoded {
+-                base64::engine::general_purpose::STANDARD
+-                    .decode(inner.body.as_bytes())
+-                    .ok()
+-                    .and_then(|b| String::from_utf8(b).ok())
+-            } else {
+-                Some(inner.body)
+-            }
+-        }
+-        Err(e) => {
+-            // Redirects and other bodiless responses land here. The pattern
+-            // is deliberately loose enough to catch the client whatever
+-            // version it is served under, so it also catches its neighbours;
+-            // that is expected, not a fault.
+-            debug!("CDP: no body for {url}: {e:#}");
+-            None
+-        }
+-    };
+-
+-    let rewritten = match body.as_deref().map(inject::rewrite_client) {
+-        Some(Ok(js)) => Some(js),
+-        // Not the client at all — the URL pattern matches its neighbours
+-        // too (`inflate_min.js`, the `latest.js` redirect). Nothing to say.
+-        Some(Err(inject::InjectError::NoDiscardHandler)) => {
+-            debug!("CDP: {url} is not the Tenhou client; passing through");
+-            None
+-        }
+-        // It *is* the client — it registers a discard handler — but the
+-        // registry could not be recovered. That means the client changed
+-        // shape, which is the one failure here that cannot be diagnosed from
+-        // logs alone, so ask for a report.
+-        Some(Err(e)) => {
+-            warn!("CDP: cannot instrument the Tenhou client ({url}): {e}");
+-            let _ = notify.send(
+-                crate::schema::Notification::warn("Tenhou autoplay unavailable")
+-                    .body(format!(
+-                        "This build of the Tenhou client could not be instrumented ({e}).                          Discards will not be played. Please report this so the client                          pattern can be updated."
+-                    ))
+-                    .sticky(),
+-            );
+-            None
+-        }
+-        None => None,
+-    };
+-
+-    let sent = match rewritten {
+-        Some(js) => {
+-            let encoded = base64::engine::general_purpose::STANDARD.encode(js.as_bytes());
+-            match FulfillRequestParams::builder()
+-                .request_id(request_id.clone())
+-                .response_code(200)
+-                // A fulfilled response carries none of the original headers.
+-                // Today the browser sniffs the missing type and executes
+-                // anyway, but one `X-Content-Type-Options: nosniff` on
+-                // tenhou.net's side would turn that into a blocked script —
+-                // so say what it is.
+-                .response_header(
+-                    chromiumoxide::cdp::browser_protocol::fetch::HeaderEntry::new(
+-                        "Content-Type",
+-                        "text/javascript",
+-                    ),
+-                )
+-                .body(encoded)
+-                .build()
+-            {
+-                Ok(p) => {
+-                    if let Err(e) = page.execute(p).await {
+-                        warn!("CDP: could not serve the instrumented client: {e:#}");
+-                        false
+-                    } else {
+-                        info!("CDP: Tenhou client instrumented ({url})");
+-                        true
+-                    }
+-                }
+-                Err(e) => {
+-                    warn!("CDP: could not build the instrumented response: {e}");
+-                    false
+-                }
+-            }
+-        }
+-        None => false,
+-    };
+-
+-    if !sent {
+-        if let Some(p) = passthrough(request_id) {
+-            let _ = page.execute(p).await;
+-        }
+-    }
+-}
+-
+ /// Enable Network on the page, subscribe to the four WS events, and
+ /// spawn a routing task. Returns the task handle so the poll loop can
+ /// abort it when the tab closes.
+@@ -521,7 +358,6 @@ async fn attach_page(
+     autoplay: Option<Arc<AutoplayContext>>,
+     http_cfg: HttpCaptureConfig,
+     block_telemetry: bool,
+-    notify: NotifyBus,
+ ) -> Result<JoinHandle<()>> {
+     page.execute(NetworkEnableParams::default())
+         .await
+@@ -535,14 +371,11 @@ async fn attach_page(
+         .event_listener::<chromiumoxide::cdp::browser_protocol::fetch::EventRequestPaused>()
+         .await
+         .context("subscribe requestPaused")?;
+-    // Instrument the Tenhou client on its way in, and hold back the game's
+-    // analytics beacons. Scoped to that one script and that one service so
++    // Hold back the game's analytics beacons. Scoped to that one service so
+     // nothing else on the page is paused; a failure to enable is logged and
+-    // the session continues without a discard path (or the block).
++    // the session continues without the block.
+     if let Err(e) = enable_interception(&page, block_telemetry).await {
+         warn!("CDP: request interception unavailable on target {target_id}: {e:#}");
+-    } else if let Err(e) = reload_if_uninstrumented(&page).await {
+-        warn!("CDP: could not re-load the client for instrumentation: {e:#}");
+     }
+     let mut on_created = page
+         .event_listener::<EventWebSocketCreated>()
+@@ -584,13 +417,9 @@ async fn attach_page(
+             tokio::select! {
+                 Some(ev) = on_paused.next() => {
+                     let url = ev.request.url.clone();
+-                    // No response yet ⇒ paused at the request stage, which
+-                    // only the telemetry pattern asks for.
+-                    if ev.response_status_code.is_none() && ev.response_error_reason.is_none() {
+-                        answer_paused_request(&page, ev.request_id.clone(), &url).await;
+-                    } else {
+-                        rewrite_paused_script(&page, &notify, ev.request_id.clone(), &url).await;
+-                    }
++                    // Paused at the request stage, which only the telemetry
++                    // pattern asks for.
++                    answer_paused_request(&page, ev.request_id.clone(), &url).await;
+                 }
+                 Some(ev) = on_created.next() => {
+                     let key = FlowKey {
+diff --git a/src/capture/chromium/mod.rs b/src/capture/chromium/mod.rs
+index a0af6d0..99c8dd8 100644
+--- a/src/capture/chromium/mod.rs
++++ b/src/capture/chromium/mod.rs
+@@ -122,10 +122,6 @@ impl CaptureBackend for ChromiumBackend {
+                 time_budget: Some(a.time_budget.clone()),
+                 input_watch: Some(a.input_watch.clone()),
+                 lobby_watch: Some(a.lobby.clone()),
+-                tenhou_state: Some(a.tenhou_state.clone()),
+-                // Chromium has no injection relay; Riichi City autoplay
+-                // only runs on the MITM path.
+-                riichi_inject: None,
+                 notify: None,
+             })
+             .unwrap_or_default();
+@@ -144,7 +140,6 @@ impl CaptureBackend for ChromiumBackend {
+             ctx.autoplay.clone(),
+             ctx.http.clone(),
+             ctx.block_telemetry,
+-            ctx.notify_bus.clone(),
+         );
+         let mut cdp_fut = Box::pin(cdp_run);
+         let shutdown_fut = shutdown.wait();
+diff --git a/src/capture/hudsucker_backend.rs b/src/capture/hudsucker_backend.rs
+index fdffd27..38c1d55 100644
+--- a/src/capture/hudsucker_backend.rs
++++ b/src/capture/hudsucker_backend.rs
+@@ -53,9 +53,6 @@ impl CaptureBackend for HudsuckerBackend {
+             Some(ctx.mjai_bus),
+             Some(ctx.notify_bus),
+             self.force_close,
+-            // Riichi City autoplay injects frames through the relay; other
+-            // platforms ignore the channel (their autoplay clicks a page).
+-            ctx.autoplay.as_ref().map(|a| a.inject.clone()),
+             shutdown_fut,
+         )
+         .await
+diff --git a/src/config/platform.rs b/src/config/platform.rs
+index c3b29a5..bd37c10 100644
+--- a/src/config/platform.rs
++++ b/src/config/platform.rs
+@@ -4,15 +4,17 @@ use crate::schema;
+ 
+ /// Game platform whose traffic the proxy intercepts. Determines which
+ /// [`crate::bridge::Bridge`] is instantiated per WebSocket flow.
++///
++/// Only Mahjong Soul is supported. To add a game: a variant here, its arms in
++/// [`Platform::subdir`], `From<Platform>` below, `bridge::for_platform` and
++/// `AutoplayManager::handle_bot_response`, and the entry in the frontend's
++/// platform list (`lib/platforms.ts`). A config naming a platform this build
++/// does not know (an older Tenhou or Riichi City one) reads as Mahjong Soul.
+ #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+ pub enum Platform {
+     #[default]
++    #[serde(other)]
+     Majsoul,
+-    Tenhou,
+-    /// Riichi City (麻雀一番街). Native client only (no web build), so it is
+-    /// captured exclusively through the MITM proxy — the Chromium/CDP backend
+-    /// does not apply. Observe-only (no autoplay).
+-    RiichiCity,
+ }
+ 
+ impl Platform {
+@@ -21,21 +23,18 @@ impl Platform {
+     pub fn subdir(self) -> &'static str {
+         match self {
+             Platform::Majsoul => "majsoul",
+-            Platform::Tenhou => "tenhou",
+-            Platform::RiichiCity => "riichi_city",
+         }
+     }
+ }
+ 
+ /// Map the bridge selector to its history-record tag. Keep the two enums
+-/// separate because the schema enum needs extra variants (`Mjai`, `Unknown`,
+-/// `RiichiCity`) that don't make sense as a runtime bridge selector.
++/// separate: the schema enum is the stored data format (it still names
++/// Tenhou and Riichi City so records of them keep reading) and has variants
++/// (`Mjai`, `Unknown`) that don't make sense as a runtime bridge selector.
+ impl From<Platform> for schema::Platform {
+     fn from(p: Platform) -> Self {
+         match p {
+             Platform::Majsoul => schema::Platform::Majsoul,
+-            Platform::Tenhou => schema::Platform::Tenhou,
+-            Platform::RiichiCity => schema::Platform::RiichiCity,
+         }
+     }
+ }
+@@ -56,13 +55,17 @@ mod tests {
+             schema::Platform::from(Platform::Majsoul),
+             schema::Platform::Majsoul
+         );
+-        assert_eq!(
+-            schema::Platform::from(Platform::Tenhou),
+-            schema::Platform::Tenhou
+-        );
+-        assert_eq!(
+-            schema::Platform::from(Platform::RiichiCity),
+-            schema::Platform::RiichiCity
+-        );
++    }
++
++    /// A config written when other games were supported still loads: the
++    /// platform it names reads as Mahjong Soul.
++    #[test]
++    fn an_old_platform_name_reads_as_majsoul() {
++        for name in ["Tenhou", "RiichiCity", "SomethingNew"] {
++            let cfg: PlatformConfig = toml::from_str(&format!("kind = \"{name}\"")).unwrap();
++            assert_eq!(cfg.kind, Platform::Majsoul, "{name}");
++        }
++        let cfg: PlatformConfig = toml::from_str("kind = \"Majsoul\"").unwrap();
++        assert_eq!(cfg.kind, Platform::Majsoul);
+     }
+ }
+diff --git a/src/proxy/handler.rs b/src/proxy/handler.rs
+index 211434a..65b379b 100644
+--- a/src/proxy/handler.rs
++++ b/src/proxy/handler.rs
+@@ -89,11 +89,6 @@ pub struct ProxyHandler {
+     /// Whether to drop the game's Aliyun SLS telemetry beacons instead of
+     /// forwarding them. See `block_telemetry_beacon`.
+     block_telemetry: bool,
+-    /// Frame injection channel for Riichi City autoplay: the client→server
+-    /// relay forwards what arrives here to the game server (gated on the
+-    /// bridge's `in_game` flag). `None` in "log only" mode / tests.
+-    /// See `autoplay::inject`.
+-    inject: Option<crate::autoplay::inject::SharedInjectBus>,
+ }
+ 
+ impl ProxyHandler {
+@@ -111,7 +106,6 @@ impl ProxyHandler {
+         certs: Arc<CertStore>,
+         rewrite_cert_report: bool,
+         block_telemetry: bool,
+-        inject: Option<crate::autoplay::inject::SharedInjectBus>,
+     ) -> anyhow::Result<Self> {
+         let binary = session.binary_logger("proxy")?;
+         let inspector = session.inspector();
+@@ -132,7 +126,6 @@ impl ProxyHandler {
+             certs,
+             rewrite_cert_report,
+             block_telemetry,
+-            inject,
+         })
+     }
+ 
+@@ -199,9 +192,8 @@ impl ProxyHandler {
+     }
+ 
+     /// Drop a telemetry request instead of forwarding it, and record the
+-    /// drop on the timeline. Two shapes match: Aliyun SLS web-tracking
+-    /// beacons (the annotator's path-based recognizer) and Riichi City's
+-    /// plain-HTTP `/game_manager/TslogServlet` tracking endpoint.
++    /// drop on the timeline. The shape that matches is Aliyun SLS
++    /// web-tracking beacons (the annotator's path-based recognizer).
+     ///
+     /// Returns the synthetic response to answer the client with when `req`
+     /// is such a request, or `None` for ordinary traffic that must be
+@@ -218,14 +210,9 @@ impl ProxyHandler {
+     /// annotation plus an `mokora_blocked` marker): an annotated gap is not a
+     /// gap, exactly as with the raw-tunnel bypass in `should_intercept`.
+     fn block_telemetry_beacon(&self, req: &Request<Body>) -> Option<Response<Body>> {
+-        // Riichi City's plain-HTTP telemetry endpoint rides ordinary
+-        // forwarded requests (no tunnel), so it is blocked here alongside
+-        // the SLS beacons.
+-        if is_riichi_city_telemetry_path(req.uri().path())
+-            || annotate::sls::parse_uri(req.uri()).is_some()
+-        {
+-            // fall through to the shared block below
+-        } else {
++        // A game whose telemetry rides ordinary forwarded requests (no
++        // tunnel) adds its path check to this condition.
++        if annotate::sls::parse_uri(req.uri()).is_none() {
+             return None;
+         }
+ 
+@@ -411,15 +398,8 @@ impl ProxyHandler {
+                     };
+                 // No time-budget slot and no input watch: the MITM path
+                 // has no `Page` handle, so click-based autoplay can never
+-                // run here. The one slot the MITM path DOES wire is Riichi
+-                // City's frame-injection gate — its autoplay transmits
+-                // protocol frames rather than clicking a page.
++                // run here.
+                 let hooks = bridge::BridgeHooks {
+-                    riichi_inject: if self.platform == Platform::RiichiCity {
+-                        self.inject.clone()
+-                    } else {
+-                        None
+-                    },
+                     notify: self.notify_tx.clone(),
+                     ..bridge::BridgeHooks::default()
+                 };
+@@ -519,8 +499,8 @@ impl HttpHandler for ProxyHandler {
+                 .into();
+         }
+ 
+-        // Refuse telemetry CONNECTs outright: Riichi City pins the
+-        // telemetry host's TLS, so its beacons never reach the
++        // Refuse telemetry CONNECTs outright: a client that pins the
++        // telemetry host's TLS never lets its beacons reach the
+         // request-level block below — refusing the tunnel keeps them off
+         // the wire deterministically, pinning or not.
+         if self.block_telemetry && is_telemetry_connect(req.method(), req.uri()) {
+@@ -714,11 +694,11 @@ impl HttpHandler for ProxyHandler {
+     /// single-tenant, and need MITM to be captured. Without the port
+     /// narrowing we'd bypass the WS gateway too and lose all frame capture.
+     ///
+-    /// The bypass is **gated to Mahjong Soul**: Riichi City reaches its
+-    /// single-tenant game server by raw IP on 443 and presents a normal
+-    /// (MITM-able) certificate, so raw-tunneling there would silently drop
+-    /// the gameplay WebSocket — the only `<ip>:443` CONNECT (the WSS gameplay
+-    /// flow) would be bypassed and no frames would reach the bridge.
++    /// The bypass is **gated to Mahjong Soul**: a game that reaches its
++    /// single-tenant game server by raw IP on 443 with a normal (MITM-able)
++    /// certificate must be intercepted, or its gameplay WebSocket — the only
++    /// `<ip>:443` CONNECT — would be bypassed and no frames would reach the
++    /// bridge.
+     ///
+     /// Hostnames are always MITM'd; the maj-soul hostname endpoints
+     /// (`mjusgs.mahjongsoul.com`, etc.) don't hit this code path.
+@@ -848,16 +828,6 @@ impl WebSocketHandler for ProxyHandler {
+         let bridge = self.acquire_bridge(client, &server_uri);
+         let force_close = self.force_close.clone();
+ 
+-        // Riichi City autoplay injects on the client→server leg only — that
+-        // sink leads to the game server. The bridge's `in_game` gate keeps
+-        // frames off the client's non-gameplay sockets (the client keeps
+-        // several flows open; only the one carrying a game should ever see
+-        // an injected command).
+-        let mut inject_rx = match (&ctx, &self.inject) {
+-            (WebSocketContext::ClientToServer { .. }, Some(bus)) => Some(bus.subscribe()),
+-            _ => None,
+-        };
+-
+         loop {
+             tokio::select! {
+                 biased;
+@@ -866,61 +836,6 @@ impl WebSocketHandler for ProxyHandler {
+                     let _ = sink.send(Message::Close(None)).await;
+                     break;
+                 }
+-                frame = async {
+-                    match inject_rx.as_mut() {
+-                        Some(rx) => rx.recv().await,
+-                        None => std::future::pending().await,
+-                    }
+-                } => {
+-                    let frame = match frame {
+-                        Ok(f) => f,
+-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+-                            warn!("inject bus lagged by {n}; dropped frames");
+-                            continue;
+-                        }
+-                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+-                    };
+-                    let in_game = self
+-                        .inject
+-                        .as_ref()
+-                        .is_some_and(|bus| bus.in_game());
+-                    if frame.gameplay && !in_game {
+-                        debug!("inject: not in a game on {client}; dropping injected gameplay frame");
+-                        continue;
+-                    }
+-                    info!("inject: forwarding injected frame to {server_uri}");
+-                    match sink.send(Message::Binary(frame.bytes.clone().into())).await {
+-                        Ok(()) => {
+-                            // Injected frames bypass the client socket, so
+-                            // without this record they are invisible on the
+-                            // wire — timing investigations could not tell
+-                            // our sends from the client's own.
+-                            let packets =
+-                                crate::bridge::riichi_city::packet::WPacket::parse_frame(&frame.bytes);
+-                            let parsed = packets.first().map(|p| {
+-                                crate::schema::ParsedFrame {
+-                                    method: format!("{} (injected)", p.method_label()),
+-                                    args: p.body.clone(),
+-                                }
+-                            });
+-                            self.inspector.record(InspectorEntry::WsFrame {
+-                                ts_ms: Local::now().timestamp_millis(),
+-                                direction: FrameDirection::Up,
+-                                flow_id: self.inspector_flow_id(client),
+-                                size: frame.bytes.len(),
+-                                raw: FrameRaw::Binary(b64(&frame.bytes)),
+-                                parsed,
+-                                emitted: 0,
+-                            });
+-                        }
+-                        Err(tungstenite::Error::ConnectionClosed)
+-                        | Err(tungstenite::Error::AlreadyClosed) => break,
+-                        Err(e) => {
+-                            error!("inject: WebSocket send error: {e}");
+-                            break;
+-                        }
+-                    }
+-                }
+                 next = stream.next() => {
+                     let Some(message) = next else { break };
+                     match message {
+@@ -1111,9 +1026,8 @@ fn uri_path_slug(uri: &Uri) -> String {
+ ///
+ /// True only for the Mahjong Soul multi-tenant CDN case — an IP-literal host
+ /// on port 443 — where MITM would set SNI = IP and the CDN would serve its
+-/// default error page. Every other platform (notably Riichi City, whose
+-/// single-tenant game server is reached by raw IP on 443 and presents a
+-/// MITM-able cert) is intercepted so its gameplay WebSocket is captured.
++/// default error page. Any other platform is intercepted so its gameplay
++/// WebSocket is captured.
+ fn should_raw_tunnel(platform: Platform, host: &str, port: u16) -> bool {
+     platform == Platform::Majsoul && port == 443 && is_ip_literal_host(host)
+ }
+@@ -1179,7 +1093,7 @@ fn is_loopback_connect(method: &Method, uri: &Uri) -> bool {
+ }
+ 
+ /// `true` for a `CONNECT` to the Aliyun SLS web-tracking service — the
+-/// telemetry vendor both Mahjong Soul and Riichi City report through. Any
++/// telemetry vendor Mahjong Soul reports through. Any
+ /// `<project>.<region>.log.aliyuncs.com` host serves nothing but beacons,
+ /// so the whole service domain is matched, current and future projects
+ /// alike.
+@@ -1190,25 +1104,16 @@ fn is_telemetry_connect(method: &Method, uri: &Uri) -> bool {
+     method == Method::CONNECT && uri.host().is_some_and(is_sls_host)
+ }
+ 
+-/// `true` for Riichi City's plain-HTTP telemetry endpoint (login /
+-/// resource-download tracking in the shipped Lua, `GameDotHelper`). These
+-/// arrive as ordinary forwarded requests — no tunnel — so they are blocked
+-/// at the request level alongside the SLS beacons.
+-fn is_riichi_city_telemetry_path(path: &str) -> bool {
+-    path == "/game_manager/TslogServlet"
+-}
+-
+ #[cfg(test)]
+ mod tests {
+     use super::{
+-        is_ip_literal_host, is_loopback_connect, is_loopback_host, is_riichi_city_telemetry_path,
+-        is_telemetry_connect, should_raw_tunnel, will_be_answered_by_handle_response,
++        is_ip_literal_host, is_loopback_connect, is_loopback_host, is_telemetry_connect, should_raw_tunnel, will_be_answered_by_handle_response,
+     };
+     use crate::config::Platform;
+     use hudsucker::hyper::{Method, Request, Uri};
+ 
+-    /// The telemetry CONNECT refusal must catch both games' Aliyun SLS
+-    /// hosts (current regions and future ones) while leaving every other
++    /// The telemetry CONNECT refusal must catch the Aliyun SLS hosts (current
++    /// regions and future ones) while leaving every other
+     /// tunnel alone — including hosts that merely contain "aliyun" or the
+     /// game's own API hosts.
+     #[test]
+@@ -1221,7 +1126,7 @@ mod tests {
+         };
+         assert!(
+             connect("hwmaj-client.ap-northeast-1.log.aliyuncs.com:443"),
+-            "Riichi City's flow-log host"
++            "a flow-log host"
+         );
+         assert!(
+             connect("example-client.cn-hongkong.log.aliyuncs.com:443"),
+@@ -1239,14 +1144,6 @@ mod tests {
+         assert!(!is_telemetry_connect(&Method::GET, &uri));
+     }
+ 
+-    #[test]
+-    fn riichi_city_plain_http_telemetry_path_is_recognized() {
+-        assert!(is_riichi_city_telemetry_path("/game_manager/TslogServlet"));
+-        // The lobby API shares the host — only the telemetry path blocks.
+-        assert!(!is_riichi_city_telemetry_path("/lobbys/startStage"));
+-        assert!(!is_riichi_city_telemetry_path("/game_manager/Other"));
+-    }
+-
+     /// Regression: only requests hudsucker answers through
+     /// `handle_response` may join the pairing queue.
+     ///
+@@ -1399,18 +1296,6 @@ mod tests {
+         assert!(should_raw_tunnel(Platform::Majsoul, "[2001:db8::1]", 443));
+     }
+ 
+-    /// Regression: Riichi City's gameplay WSS goes to its single-tenant game
+-    /// server by raw IP on 443. It must be MITM'd — raw-tunneling silently
+-    /// dropped every gameplay frame in a real capture.
+-    #[test]
+-    fn riichi_city_ip_literal_443_is_intercepted() {
+-        assert!(!should_raw_tunnel(
+-            Platform::RiichiCity,
+-            "13.112.183.79",
+-            443
+-        ));
+-    }
+-
+     /// The bypass never applies to hostnames or non-443 ports, even on Majsoul.
+     #[test]
+     fn raw_tunnel_only_for_ip_literal_443() {
+@@ -1421,7 +1306,6 @@ mod tests {
+         ));
+         assert!(!should_raw_tunnel(Platform::Majsoul, "13.112.183.79", 80));
+         assert!(!should_raw_tunnel(Platform::Majsoul, "13.112.183.79", 8443));
+-        assert!(!should_raw_tunnel(Platform::Tenhou, "13.112.183.79", 443));
+     }
+ 
+     #[test]
+diff --git a/src/proxy/mod.rs b/src/proxy/mod.rs
+index ef424d5..da7ca31 100644
+--- a/src/proxy/mod.rs
++++ b/src/proxy/mod.rs
+@@ -33,7 +33,6 @@ pub async fn start_proxy<F>(
+     mjai_tx: Option<MjaiBus>,
+     notify_tx: Option<NotifyBus>,
+     force_close: Arc<Notify>,
+-    inject: Option<crate::autoplay::inject::SharedInjectBus>,
+     shutdown: F,
+ ) -> Result<()>
+ where
+@@ -60,7 +59,6 @@ where
+         certs.clone(),
+         config.rewrite_certificate_report,
+         config.block_telemetry,
+-        inject,
+     )?;
+ 
+     info!("Starting proxy on {addr}");
+diff --git a/tests/common/mod.rs b/tests/common/mod.rs
+index bb30080..14de855 100644
+--- a/tests/common/mod.rs
++++ b/tests/common/mod.rs
+@@ -182,7 +182,6 @@ impl Harness {
+             None,
+             None,
+             Arc::new(Notify::new()),
+-            None,
+             async move {
+                 stop_rx.await.unwrap_or_default();
+             },
+diff --git a/tests/proxy_cert_report_rewrite.rs b/tests/proxy_cert_report_rewrite.rs
+index c19309b..3db7f2b 100644
+--- a/tests/proxy_cert_report_rewrite.rs
++++ b/tests/proxy_cert_report_rewrite.rs
+@@ -213,7 +213,6 @@ async fn the_report_that_leaves_describes_the_origin_not_mokora() {
+         None,
+         None,
+         Arc::new(Notify::new()),
+-        None,
+         async move {
+             stop_rx.await.unwrap_or_default();
+         },
+diff --git a/tests/proxy_loopback_connect.rs b/tests/proxy_loopback_connect.rs
+index d3ad4af..40f8ae9 100644
+--- a/tests/proxy_loopback_connect.rs
++++ b/tests/proxy_loopback_connect.rs
+@@ -112,7 +112,6 @@ async fn loopback_connect_is_refused_without_blocking() {
+         None,
+         Some(notify),
+         Arc::new(Notify::new()),
+-        None,
+         async move {
+             stop_rx.await.unwrap_or_default();
+         },

@@ -1,0 +1,746 @@
+{
+ "200001": {
+  "jp": "一姫",
+  "zh": "一姬",
+  "en": "Ichihime",
+  "slug": "ichihime"
+ },
+ "200002": {
+  "jp": "二階堂美樹",
+  "zh": "二階堂美樹",
+  "en": "Miki Nikaidou",
+  "slug": "nikaidomiki"
+ },
+ "200003": {
+  "jp": "藤田佳奈",
+  "zh": "藤田佳奈",
+  "en": "Kana Fujita",
+  "slug": "fujitakana"
+ },
+ "200004": {
+  "jp": "三上千織",
+  "zh": "三上千織",
+  "en": "Chiori Mikami",
+  "slug": "mikamichiori"
+ },
+ "200005": {
+  "jp": "相原舞",
+  "zh": "相原舞",
+  "en": "Mai Aihara",
+  "slug": "aiharamai"
+ },
+ "200006": {
+  "jp": "撫子",
+  "zh": "撫子",
+  "en": "Nadeshiko",
+  "slug": "nadeshiko"
+ },
+ "200007": {
+  "jp": "八木唯",
+  "zh": "八木唯",
+  "en": "Yui Yagi",
+  "slug": "yagiyui"
+ },
+ "200008": {
+  "jp": "九条璃雨",
+  "zh": "九條璃雨",
+  "en": "Riu Kujou",
+  "slug": "kujoriu"
+ },
+ "200009": {
+  "jp": "ジニア",
+  "zh": "澤尼婭",
+  "en": "Xenia",
+  "slug": "zinnia"
+ },
+ "200010": {
+  "jp": "カーヴィ",
+  "zh": "卡維",
+  "en": "Kaavi",
+  "slug": "kaavi"
+ },
+ "200011": {
+  "jp": "四宮夏生",
+  "zh": "四宮夏生",
+  "en": "Natsuki Shinomiya",
+  "slug": "shinomiyanatsuki"
+ },
+ "200012": {
+  "jp": "ワン次郎",
+  "zh": "汪次郎",
+  "en": "Wanjirou",
+  "slug": "wanjirou"
+ },
+ "200013": {
+  "jp": "一ノ瀬空",
+  "zh": "一之瀨空",
+  "en": "Sora Ichinose",
+  "slug": "ichinosesora"
+ },
+ "200014": {
+  "jp": "明智英樹",
+  "zh": "明智英樹",
+  "en": "Hideki Akechi",
+  "slug": "akechihideki"
+ },
+ "200015": {
+  "jp": "軽庫娘",
+  "zh": "輕庫娘",
+  "en": "Keikumusume",
+  "slug": "keikumusume"
+ },
+ "200016": {
+  "jp": "サラ",
+  "zh": "莎拉",
+  "en": "Sara",
+  "slug": "sara"
+ },
+ "200017": {
+  "jp": "二之宮花",
+  "zh": "二之宮花",
+  "en": "Hana Ninomiya",
+  "slug": "ninomiyahana"
+ },
+ "200018": {
+  "jp": "白石奈々",
+  "zh": "白石奈奈",
+  "en": "Nana Shiraishi",
+  "slug": "shiraishinana"
+ },
+ "200019": {
+  "jp": "小鳥遊雛田",
+  "zh": "小鳥遊雛田",
+  "en": "Hinata Takanashi",
+  "slug": "takanashihinata"
+ },
+ "200020": {
+  "jp": "五十嵐陽菜",
+  "zh": "五十嵐陽菜",
+  "en": "Haruna Igarashi",
+  "slug": "igarashiharuna"
+ },
+ "200021": {
+  "jp": "涼宮杏樹",
+  "zh": "涼宮杏樹",
+  "en": "Anju Suzumiya",
+  "slug": "suzumiyaanju"
+ },
+ "200022": {
+  "jp": "ジョセフ",
+  "zh": "約瑟夫",
+  "en": "Joseph",
+  "slug": "joseph"
+ },
+ "200023": {
+  "jp": "斎藤治",
+  "zh": "齋藤治",
+  "en": "Osamu Saitou",
+  "slug": "saitouosamu"
+ },
+ "200024": {
+  "jp": "北見紗和子",
+  "zh": "北見紗和子",
+  "en": "Sawako Kitami",
+  "slug": "kitamisawako"
+ },
+ "200025": {
+  "jp": "エイン",
+  "zh": "艾因",
+  "en": "Ein",
+  "slug": "ein"
+ },
+ "200026": {
+  "jp": "雛桃",
+  "zh": "雛桃",
+  "en": "Momo Hina",
+  "slug": "hinamomo"
+ },
+ "200027": {
+  "jp": "月見山",
+  "zh": "月見山",
+  "en": "Zan Tsukimi",
+  "slug": "tsukimizan"
+ },
+ "200028": {
+  "jp": "藤本キララ",
+  "zh": "藤本綺羅",
+  "en": "Kirara Fujimoto",
+  "slug": "fujimotokirara"
+ },
+ "200029": {
+  "jp": "かぐや姫",
+  "zh": "輝夜姬",
+  "en": "Kaguyahime",
+  "slug": "kaguyahime"
+ },
+ "200030": {
+  "jp": "如月蓮",
+  "zh": "如月蓮",
+  "en": "Ren Kisaragi",
+  "slug": "kisaragiren"
+ },
+ "200031": {
+  "jp": "石原碓海",
+  "zh": "石原碓海",
+  "en": "Usumi Ishihara",
+  "slug": "ishiharausumi"
+ },
+ "200032": {
+  "jp": "エリサ",
+  "zh": "艾麗莎",
+  "en": "Eliisa",
+  "slug": "eliisa"
+ },
+ "200033": {
+  "jp": "寺崎千穂理",
+  "zh": "寺崎千穗理",
+  "en": "Chihori Terasaki",
+  "slug": "terasakichihori"
+ },
+ "200034": {
+  "jp": "宮永咲",
+  "zh": "宮永咲",
+  "en": "Saki Miyanaga",
+  "slug": "miyanagasaki"
+ },
+ "200035": {
+  "jp": "原村和",
+  "zh": "原村和",
+  "en": "Nodoka Haramura",
+  "slug": "haramuranodoka"
+ },
+ "200036": {
+  "jp": "天江衣",
+  "zh": "天江衣",
+  "en": "Koromo Amae",
+  "slug": "amaekoromo"
+ },
+ "200037": {
+  "jp": "宮永照",
+  "zh": "宮永照",
+  "en": "Teru Miyanaga",
+  "slug": "miyanagateru"
+ },
+ "200038": {
+  "jp": "福姫",
+  "zh": "福姬",
+  "en": "Fu Ji",
+  "slug": "fuji"
+ },
+ "200039": {
+  "jp": "七夕",
+  "zh": "七夕",
+  "en": "Qi Xi",
+  "slug": "qixi"
+ },
+ "200040": {
+  "jp": "蛇喰夢子",
+  "zh": "蛇喰夢子",
+  "en": "Yumeko Jabami",
+  "slug": "jabamiyumeko"
+ },
+ "200041": {
+  "jp": "早乙女芽亜里",
+  "zh": "早乙女芽亞里",
+  "en": "Mary Saotome",
+  "slug": "saotomemeari"
+ },
+ "200042": {
+  "jp": "生志摩妄",
+  "zh": "生志摩妄",
+  "en": "Midari Ikishima",
+  "slug": "ikishimamidari"
+ },
+ "200043": {
+  "jp": "桃喰綺羅莉",
+  "zh": "桃喰綺羅莉",
+  "en": "Kirari Momobami",
+  "slug": "momobamikirari"
+ },
+ "200044": {
+  "jp": "七海礼奈",
+  "zh": "七海禮奈",
+  "en": "Reina Nanami",
+  "slug": "nanamireina"
+ },
+ "200045": {
+  "jp": "A-37",
+  "zh": "A-37",
+  "en": "A-37",
+  "slug": "a-37"
+ },
+ "200046": {
+  "jp": "姫川響",
+  "zh": "姬川響",
+  "en": "Hibiki Himekawa",
+  "slug": "himekawahibiki"
+ },
+ "200047": {
+  "jp": "ライアン",
+  "zh": "萊恩",
+  "en": "Ryan",
+  "slug": "ryan"
+ },
+ "200048": {
+  "jp": "森川綾子",
+  "zh": "森川綾子",
+  "en": "Ayako Morikawa",
+  "slug": "morikawaayako"
+ },
+ "200049": {
+  "jp": "滝川夏彦",
+  "zh": "瀧川夏彥",
+  "en": "Natsuhiko Takigawa",
+  "slug": "takigawanatsuhiko"
+ },
+ "200050": {
+  "jp": "赤木しげる",
+  "zh": "赤木茂",
+  "en": "Shigeru Akagi",
+  "slug": "akagishigeru"
+ },
+ "200051": {
+  "jp": "鷲巣巌",
+  "zh": "鷲巢巖",
+  "en": "Iwao Washizu",
+  "slug": "washizuiwao"
+ },
+ "200052": {
+  "jp": "西園寺一羽",
+  "zh": "西園寺一羽",
+  "en": "Kazuha Saionji",
+  "slug": "saionjikazuha"
+ },
+ "200053": {
+  "jp": "小野寺七羽",
+  "zh": "小野寺七羽",
+  "en": "Nanaha Onodera",
+  "slug": "onoderananaha"
+ },
+ "200054": {
+  "jp": "サミール",
+  "zh": "夏彌爾",
+  "en": "Sammir",
+  "slug": "sammir"
+ },
+ "200055": {
+  "jp": "四宮かぐや",
+  "zh": "四宮輝夜",
+  "en": "Kaguya Shinomiya",
+  "slug": "shinomiyakaguya"
+ },
+ "200056": {
+  "jp": "白銀御行",
+  "zh": "白銀御行",
+  "en": "Miyuki Shirogane",
+  "slug": "shiroganemiyuki"
+ },
+ "200057": {
+  "jp": "早坂愛",
+  "zh": "早坂愛",
+  "en": "Ai Hayasaka",
+  "slug": "hayasakaai"
+ },
+ "200058": {
+  "jp": "白銀圭",
+  "zh": "白銀圭",
+  "en": "Kei Shirogane",
+  "slug": "shiroganekei"
+ },
+ "200059": {
+  "jp": "ゆず",
+  "zh": "柚",
+  "en": "Yuzu",
+  "slug": "yuzu"
+ },
+ "200060": {
+  "jp": "ゼクス",
+  "zh": "澤克斯",
+  "en": "Zechs",
+  "slug": "zechs"
+ },
+ "200061": {
+  "jp": "北原リリィ",
+  "zh": "北原莉莉",
+  "en": "Lily Kitahara",
+  "slug": "kitaharalily"
+ },
+ "200062": {
+  "jp": "竹井久",
+  "zh": "竹井久",
+  "en": "Hisa Takei",
+  "slug": "takeihisa"
+ },
+ "200063": {
+  "jp": "福路美穂子",
+  "zh": "福路美穗子",
+  "en": "Mihoko Fukuji",
+  "slug": "fukujimihoko"
+ },
+ "200064": {
+  "jp": "新子憧",
+  "zh": "新子憧",
+  "en": "Ako Atarashi",
+  "slug": "atarashiako"
+ },
+ "200065": {
+  "jp": "園城寺怜",
+  "zh": "園城寺怜",
+  "en": "Toki Onjoji",
+  "slug": "onjoujitoki"
+ },
+ "200066": {
+  "jp": "四宮冬実",
+  "zh": "四宮冬實",
+  "en": "Fuyumi Shinomiya",
+  "slug": "shinomiyafuyumi"
+ },
+ "200067": {
+  "jp": "セイラン",
+  "zh": "青鸞",
+  "en": "Qing Luan",
+  "slug": "qingluan"
+ },
+ "200068": {
+  "jp": "如月彩音",
+  "zh": "如月彩音",
+  "en": "Ayane Kisaragi",
+  "slug": "kisaragiayane"
+ },
+ "200069": {
+  "jp": "未来",
+  "zh": "未來",
+  "en": "Mirai",
+  "slug": "mirai"
+ },
+ "200070": {
+  "jp": "ルルーシュ・ランペルージ",
+  "zh": "魯路修·蘭佩洛基",
+  "en": "Lelouch Lamperouge",
+  "slug": "lelouch"
+ },
+ "200071": {
+  "jp": "C.C.",
+  "zh": "C.C.",
+  "en": "C.C.",
+  "slug": "cc"
+ },
+ "200072": {
+  "jp": "枢木スザク",
+  "zh": "樞木朱雀",
+  "en": "Suzaku Kururugi",
+  "slug": "kururugisuzaku"
+ },
+ "200073": {
+  "jp": "紅月カレン",
+  "zh": "紅月卡蓮",
+  "en": "Kallen Kouzuki",
+  "slug": "kouzukikallen"
+ },
+ "200074": {
+  "jp": "嵐星",
+  "zh": "嵐星",
+  "en": "Ransei",
+  "slug": "ransei"
+ },
+ "200075": {
+  "jp": "リン",
+  "zh": "凌",
+  "en": "Ling",
+  "slug": "ling"
+ },
+ "200076": {
+  "jp": "東城玄音",
+  "zh": "東城玄音",
+  "en": "Kurone Toujou",
+  "slug": "toujoukurone"
+ },
+ "200077": {
+  "jp": "ハンナ",
+  "zh": "漢娜",
+  "en": "Hannah",
+  "slug": "hannah"
+ },
+ "200078": {
+  "jp": "ムーサ",
+  "zh": "穆薩",
+  "en": "Musa",
+  "slug": "musa"
+ },
+ "200079": {
+  "jp": "イリヤ",
+  "zh": "伊莉雅",
+  "en": "Illya",
+  "slug": "illya"
+ },
+ "200080": {
+  "jp": "美遊",
+  "zh": "美遊",
+  "en": "Miyu",
+  "slug": "miyu"
+ },
+ "200081": {
+  "jp": "クロ",
+  "zh": "小黑",
+  "en": "Kuro",
+  "slug": "kuro"
+ },
+ "200082": {
+  "jp": "ギル",
+  "zh": "吉爾",
+  "en": "Gil",
+  "slug": "gil"
+ },
+ "200083": {
+  "jp": "イブ・クリス",
+  "zh": "伊芙·克里斯特",
+  "en": "Eve Krist",
+  "slug": "evekrist"
+ },
+ "200084": {
+  "jp": "琳琅",
+  "zh": "琳琅",
+  "en": "Lin Lang",
+  "slug": "linlang"
+ },
+ "200085": {
+  "jp": "袁楓",
+  "zh": "袁楓",
+  "en": "Yuan Feng",
+  "slug": "yuanfeng"
+ },
+ "200086": {
+  "jp": "シロコ",
+  "zh": "砂狼白子",
+  "en": "Shiroko",
+  "slug": "shiroko"
+ },
+ "200087": {
+  "jp": "ホシノ",
+  "zh": "小鳥遊星野",
+  "en": "Hoshino",
+  "slug": "hoshino"
+ },
+ "200088": {
+  "jp": "アル",
+  "zh": "陸八魔亞瑠",
+  "en": "Aru",
+  "slug": "aru"
+ },
+ "200089": {
+  "jp": "ムツキ",
+  "zh": "淺黃無月",
+  "en": "Mutsuki",
+  "slug": "mutsuki"
+ },
+ "200090": {
+  "jp": "玖辻",
+  "zh": "玖辻",
+  "en": "Kutsuji",
+  "slug": "kutsuji"
+ },
+ "200091": {
+  "jp": "ヒーリ",
+  "zh": "希里",
+  "en": "Ciri",
+  "slug": "ciri"
+ },
+ "200092": {
+  "jp": "局",
+  "zh": "局",
+  "en": "Ju",
+  "slug": "ju"
+ },
+ "200093": {
+  "jp": "レイア",
+  "zh": "萊婭",
+  "en": "Leia",
+  "slug": "leia"
+ },
+ "200094": {
+  "jp": "シンシア",
+  "zh": "辛西婭",
+  "en": "Cynthia",
+  "slug": "cynthia"
+ },
+ "200095": {
+  "jp": "南楓花",
+  "zh": "南楓花",
+  "en": "Fuuka Minami",
+  "slug": "minamifuka"
+ },
+ "200096": {
+  "jp": "非名",
+  "zh": "非名",
+  "en": "Fei Ming",
+  "slug": "feiming"
+ },
+ "200097": {
+  "jp": "サターン",
+  "zh": "薩塔恩",
+  "en": "Saturne",
+  "slug": "saturne"
+ },
+ "200098": {
+  "jp": "花 語青",
+  "zh": "花語青",
+  "en": "Hua Yuqing",
+  "slug": "huayuqing"
+ },
+ "200099": {
+  "jp": "花 語白",
+  "zh": "花語白",
+  "en": "Hua Yubai",
+  "slug": "huayubai"
+ },
+ "20000100": {
+  "jp": "浅倉 透",
+  "zh": "浅倉透",
+  "en": "Toru Asakura",
+  "slug": "asakuratoru"
+ },
+ "20000101": {
+  "jp": "樋口円香",
+  "zh": "樋口圓香",
+  "en": "Madoka Higuchi",
+  "slug": "higuchimadoka"
+ },
+ "20000102": {
+  "jp": "福丸小糸",
+  "zh": "福丸小糸",
+  "en": "Koito Fukumaru",
+  "slug": "fukumarukoito"
+ },
+ "20000103": {
+  "jp": "市川雛菜",
+  "zh": "市川雛菜",
+  "en": "Hinana Ichikawa",
+  "slug": "ichikawahinana"
+ },
+ "20000106": {
+  "jp": "ジェーン",
+  "zh": "簡",
+  "en": "Jane",
+  "slug": "jane"
+ },
+ "20000107": {
+  "jp": "元宵",
+  "zh": "元宵",
+  "en": "Yuan Xiao",
+  "slug": "yuanxiao"
+ },
+ "20000108": {
+  "jp": "間桐桜",
+  "zh": "間桐櫻",
+  "en": "Sakura Matou",
+  "slug": "matousakura"
+ },
+ "20000109": {
+  "jp": "遠坂凛",
+  "zh": "遠坂凜",
+  "en": "Rin Tohsaka",
+  "slug": "tohsakarin"
+ },
+ "20000110": {
+  "jp": "セイバー",
+  "zh": "Saber",
+  "en": "Saber",
+  "slug": "saber"
+ },
+ "20000111": {
+  "jp": "アーチャー",
+  "zh": "Archer",
+  "en": "Archer",
+  "slug": "archer"
+ },
+ "20000112": {
+  "jp": "璃央",
+  "zh": "璃央",
+  "en": "Li Yang",
+  "slug": "riyang"
+ },
+ "20000113": {
+  "jp": "坂田銀時",
+  "zh": "坂田銀時",
+  "en": "Gintoki Sakata",
+  "slug": "sakatagintoki"
+ },
+ "20000114": {
+  "jp": "桂小太郎",
+  "zh": "桂小太郎",
+  "en": "Kotaro Katsura",
+  "slug": "katsurakotaro"
+ },
+ "20000115": {
+  "jp": "高杉晋助",
+  "zh": "高杉晉助",
+  "en": "Shinsuke Takasugi",
+  "slug": "takasugishinsuke"
+ },
+ "20000116": {
+  "jp": "坂本辰馬",
+  "zh": "坂本辰馬",
+  "en": "Tatsuma Sakamoto",
+  "slug": "sakamototatsuma"
+ },
+ "20000117": {
+  "jp": "ミラ",
+  "zh": "彌拉",
+  "en": "Mila",
+  "slug": "mila"
+ },
+ "20000118": {
+  "jp": "北落",
+  "zh": "北落",
+  "en": "Hokuraku",
+  "slug": "hokuraku"
+ },
+ "20000119": {
+  "jp": "篠原 ミア",
+  "zh": "筱原米亞",
+  "en": "Mia Shinohara",
+  "slug": "shinoharamia"
+ },
+ "20000120": {
+  "jp": "キンウ",
+  "zh": "金烏",
+  "en": "Jin Wu",
+  "slug": "jinwu"
+ },
+ "20000121": {
+  "jp": "赤麟",
+  "zh": "赤麟",
+  "en": "Chi Lin",
+  "slug": "chilin"
+ },
+ "20000122": {
+  "jp": "キリト",
+  "zh": "桐人",
+  "en": "Kirito",
+  "slug": "kirito"
+ },
+ "20000123": {
+  "jp": "アスナ",
+  "zh": "亞絲娜",
+  "en": "Asuna",
+  "slug": "asuna"
+ },
+ "20000124": {
+  "jp": "リーファ",
+  "zh": "莉法",
+  "en": "Leafa",
+  "slug": "leafa"
+ },
+ "20000125": {
+  "jp": "シノン",
+  "zh": "詩乃",
+  "en": "Sinon",
+  "slug": "sinon"
+ },
+ "20000126": {
+  "jp": "モフィー",
+  "zh": "墨菲",
+  "en": "Murphy",
+  "slug": "murphy"
+ }
+}

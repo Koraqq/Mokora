@@ -1,0 +1,11 @@
+{
+  "identifier": "overlay",
+  "description": "Permissions for the always-on-top suggestion overlay window. Without a capability scoped to this label the overlay webview cannot listen for `bot-response` and renders blank forever.",
+  "windows": ["overlay"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close"
+  ]
+}

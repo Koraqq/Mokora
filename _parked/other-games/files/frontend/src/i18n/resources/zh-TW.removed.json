@@ -1,0 +1,11 @@
+{
+  "settings.autoplay.rc_warning_title": "麻雀一番街自動打牌風險警告",
+  "settings.autoplay.rc_warning_desc": "麻雀一番街的自動打牌是透過 MITM 注入遊戲封包的方式實現的,在安全性上仍有疑慮,可能導致帳號被封禁。請自行評估風險後再使用。",
+  "settings.autoplay.rc_warning_ack": "我已了解風險",
+  "platform.tenhou": "天鳳",
+  "platform.tenhou_desc": "tenhou.net — 四麻 + 三麻",
+  "platform.riichi_city": "麻雀一番街",
+  "platform.riichi_city_desc": "原生用戶端 — 僅 MITM · 四麻 + 三麻",
+  "history.rule.tenhou": "天鳳",
+  "settings.autoplay.enable_help": "啟用後，Mokora 會替你執行 BOT 選擇的動作。需使用內建遊戲視窗或 Chromium 擷取模式。雀魂會在牌桌上點擊；天鳳則直接透過遊戲連線送出。"
+}

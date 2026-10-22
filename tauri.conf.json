@@ -1,0 +1,60 @@
+{
+  "productName": "Mokora",
+  "identifier": "com.mokora.mokora",
+  "build": {
+    "frontendDist": "./frontend/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": {
+      "script": "npm run dev",
+      "cwd": "./frontend"
+    },
+    "beforeBuildCommand": {
+      "script": "npm ci && npm run build",
+      "cwd": "./frontend"
+    }
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "Mokora",
+        "width": 1560,
+        "height": 980,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Koraqq",
+    "copyright": "Copyright 2026 Koraqq",
+    "shortDescription": "Mahjong Soul assistant with a built-in AI model",
+    "category": "Utility",
+    "licenseFile": "LICENSE.txt",
+    "icon": [
+      "icons/32x32.png",
+      "icons/64x64.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "template": "installer/nsis/installer.nsi",
+        "languages": ["TradChinese", "English"],
+        "customLanguageFiles": {
+          "TradChinese": "installer/nsis/TradChinese.nsh",
+          "English": "installer/nsis/English.nsh"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,91 @@
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { createHashRouter, redirect, RouterProvider } from 'react-router-dom'
+import 'mahgen'
+import './index.css'
+import './i18n'
+import './stores/themeStore'
+import App from './App.tsx'
+import { Play } from '@/routes/Play'
+import { GameDashboard } from '@/routes/GameDashboard'
+import { Bots } from '@/routes/Bots'
+import { History } from '@/routes/History'
+import { Review } from '@/routes/Review'
+import { Logs } from '@/routes/Logs'
+import { Settings } from '@/routes/Settings'
+import { Profile } from '@/routes/Profile'
+import { Setup } from '@/routes/Setup'
+import { Overlay } from '@/routes/Overlay'
+import { HAS_TAURI, invoke } from '@/lib/tauri'
+import { isOverlayWindow } from '@/lib/window'
+import type { AppConfig } from '@/types'
+
+// Loader on the protected branch: bounce to /setup when first_run_completed
+// is false. The /setup route lives outside this loader so it can render
+// without recursion. Browser-only mode (no Tauri) skips the check entirely.
+const requireFirstRunCompleted = async () => {
+  if (!HAS_TAURI) return null
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general.first_run_completed) {
+      return redirect('/setup')
+    }
+  } catch {
+    // If get_config fails the rest of the UI surfaces it; don't gate on it.
+  }
+  return null
+}
+
+// The front page: the play screen when the game is shown in this window, the
+// game dashboard otherwise.
+const frontPage = async () => {
+  if (!HAS_TAURI) return redirect('/game')
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (cfg.capture.mode === 'embedded') return redirect('/play')
+  } catch {
+    /* the dashboard it is */
+  }
+  return redirect('/game')
+}
+
+const router = createHashRouter([
+  { path: '/setup', element: <Setup /> },
+  {
+    element: <App />,
+    loader: requireFirstRunCompleted,
+    children: [
+      { index: true, loader: frontPage },
+      { path: 'play', element: <Play /> },
+      { path: 'game', element: <GameDashboard /> },
+      { path: 'bots', element: <Bots /> },
+      { path: 'history', element: <History /> },
+      { path: 'review', element: <Review /> },
+      { path: 'logs', element: <Logs /> },
+      { path: 'profile', element: <Profile /> },
+      { path: 'settings', element: <Settings /> },
+    ],
+  },
+])
+
+// Both windows load this same bundle; the window label decides which root gets
+// mounted. The overlay skips the router entirely — it has exactly one screen,
+// and a hash route would only invite the sidebar/statusbar layout to tag along.
+const root = createRoot(document.getElementById('root')!)
+
+if (isOverlayWindow()) {
+  // Lets index.css punch the page background out to transparent, so only the
+  // overlay's own card is drawn over the game.
+  document.documentElement.classList.add('overlay-window')
+  root.render(
+    <StrictMode>
+      <Overlay />
+    </StrictMode>,
+  )
+} else {
+  root.render(
+    <StrictMode>
+      <RouterProvider router={router} />
+    </StrictMode>,
+  )
+}

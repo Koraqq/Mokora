@@ -1,0 +1,2280 @@
+//! `#[tauri::command]` handlers exposed to the frontend.
+//!
+//! Errors are returned as `String` because Tauri serializes command
+//! errors via `Display` and most call sites just want a human message in
+//! a toast. Keep the JSON shape conservative — clients lock onto field
+//! names quickly and renames break dashboards.
+
+use crate::analysis::result::AnalysisResult;
+use crate::bot::install::{self, GithubInstallSpec, LocalZipInstallSpec};
+use crate::bot::manifest::{self, BotSource};
+use crate::bot::runtime;
+use crate::bot::sync_guard::SyncGuard;
+use crate::bot::{BotEntry, BotRegistry};
+use crate::config::AppConfig;
+use crate::game_state::mahgen_view::MahgenView;
+use crate::game_state::snapshot::GameStateSnapshot;
+use crate::hub::{Acct, Hub};
+use crate::ipc::capture_supervisor::{
+    restart_capture as restart_capture_inner, spawn_capture_supervisor,
+};
+use crate::ipc::overlay;
+use crate::ipc::state::AppState;
+use crate::schema::{
+    BotInfo, BotSettings, GameRecord, HistoryEvent, HistoryEventLog, HistoryFilter, HoraScoreInfo,
+    InspectorEntry, LogEntry, LogSessionInfo, Notification, ReadInspectorRequest,
+    ReadInspectorResponse, ReadLogRequest, ReadLogResponse, Snapshot,
+};
+use crate::util::resolve_dir;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Manager, State};
+
+/// Returns `true` exactly once per process the first time `bot_enabled`
+/// is observed as `true` here. Side-effect on success: flips `flag`
+/// false→true via a CAS. Used by `update_config` to decide whether the
+/// caller should spawn a fresh `BotManager`.
+fn claim_bot_manager_spawn(bot_enabled: bool, flag: &std::sync::atomic::AtomicBool) -> bool {
+    use std::sync::atomic::Ordering;
+    bot_enabled
+        && flag
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+}
+
+/// Same once-per-process gating as the bot variant, but for the autoplay
+/// manager. Toggling `autoplay.enabled` back to false leaves the manager
+/// alive — it just becomes a no-op because every bot response is gated
+/// on a fresh `cfg.autoplay.enabled` read.
+fn claim_autoplay_manager_spawn(
+    autoplay_enabled: bool,
+    flag: &std::sync::atomic::AtomicBool,
+) -> bool {
+    use std::sync::atomic::Ordering;
+    autoplay_enabled
+        && flag
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+}
+
+fn entry_to_info(e: &BotEntry) -> BotInfo {
+    BotInfo {
+        name: e.name.clone(),
+        dir: e.dir.to_string_lossy().into_owned(),
+        has_pyproject: e.pyproject.is_some(),
+        env_ready: runtime::is_synced(&e.dir),
+        manifest: e.manifest.clone(),
+    }
+}
+
+type CmdResult<T> = Result<T, String>;
+
+#[tauri::command]
+pub async fn get_config(state: Acct) -> CmdResult<AppConfig> {
+    Ok(state.config.read().await.clone())
+}
+
+/// Replace the entire config and persist it to the same file the app
+/// loaded from. Capture-related changes (mode, chromium settings, proxy
+/// settings) trigger an automatic supervisor restart so the user doesn't
+/// have to relaunch the app to switch capture modes. A `bot.enabled`
+/// false→true flip (typically the first-run wizard finishing) hot-starts
+/// the `BotManager` so the user doesn't have to relaunch either; once
+/// started the manager runs for the lifetime of the process (toggling
+/// `bot.enabled` back to false still requires a relaunch to actually
+/// stop it).
+#[tauri::command]
+pub async fn update_config(new_config: AppConfig, app: AppHandle, state: Acct) -> CmdResult<()> {
+    persist_config(&new_config, &state.config_path).map_err(|e| e.to_string())?;
+
+    // Snapshot the *previous* capture-relevant fields before we overwrite,
+    // so we can decide whether the supervisor needs a swap.
+    let (prev_capture, prev_proxy, prev_platform) = {
+        let cfg = state.config.read().await;
+        (cfg.capture.clone(), cfg.proxy.clone(), cfg.platform.kind)
+    };
+    let capture_changed = prev_capture != new_config.capture;
+    let proxy_changed = prev_proxy != new_config.proxy;
+    let platform_changed = prev_platform != new_config.platform.kind;
+    let new_platform = new_config.platform.kind;
+    let bot_now_enabled = new_config.bot.enabled;
+    let autoplay_now_enabled = new_config.autoplay.enabled;
+    let new_overlay = new_config.overlay.clone();
+    // Stamp games recorded from here on with the bots just saved.
+    *state
+        .history_bots
+        .write()
+        .expect("history bots lock poisoned") =
+        crate::history::recorder::ActiveBots::from_config(&new_config.bot);
+    crate::bridge::redact::set_enabled(new_config.privacy.redact_credentials);
+    *state.config.write().await = new_config;
+
+    // Open / close / retune the overlay window to match what was just saved —
+    // by the account the window shows (the overlay follows it).
+    if app
+        .try_state::<Hub>()
+        .is_some_and(|hub| hub.active_id() == *state.account_id)
+    {
+        overlay::reconcile(&app, &new_overlay);
+    }
+
+    // Sync the history recorder's platform tag immediately. Subsequent
+    // finalised games are stamped with the new tag; the in-flight buffer
+    // (if any) keeps the tag it had at start_game — acceptable, since
+    // mid-game platform switches are not a real workflow.
+    if platform_changed {
+        *state
+            .history_platform
+            .write()
+            .expect("history platform lock poisoned") = crate::schema::Platform::from(new_platform);
+    }
+
+    if capture_changed || proxy_changed || platform_changed {
+        // Run the restart in the background — `update_config` returns
+        // promptly so the UI doesn't hang on slow shutdowns.
+        let st = (*state).clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = restart_capture_inner(st).await {
+                let _ = ();
+                tracing::error!("auto-restart capture failed: {e:#}");
+            }
+        });
+        let body = if platform_changed {
+            "Applied platform / capture / proxy config changes."
+        } else {
+            "Applied capture / proxy config changes."
+        };
+        let _ = state
+            .notify_bus
+            .send(Notification::info("Capture restarted").body(body));
+    } else {
+        let _ = state.notify_bus.send(
+            Notification::success("Config saved")
+                .body("Restart affected subsystems for changes to take effect."),
+        );
+    }
+
+    // Hot-start the bot manager when bot.enabled flips false→true.
+    // `bot_manager_started` is process-wide, so repeat false→true→false→true
+    // toggles only spawn once. The manager runs forever; flipping back to
+    // false still requires an Mokora relaunch to actually stop it.
+    if claim_bot_manager_spawn(bot_now_enabled, &state.bot_manager_started) {
+        let cfg_for_bot = state.config.clone();
+        let events = state.post_tracker_bus.clone();
+        let resp = state.bot_response_bus.clone();
+        let bs = state.bot_status_bus.clone();
+        let nb = state.notify_bus.clone();
+        let inspector = state.log_session.inspector();
+        let rt = state.runtime.clone();
+        let syncs = state.syncs_in_flight.clone();
+        let started_flag = state.bot_manager_started.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) =
+                crate::bot::run_bot_manager(cfg_for_bot, events, resp, bs, nb, inspector, rt, syncs)
+                    .await
+            {
+                tracing::error!("Bot manager failed: {e:#}");
+                // Setup failure: clear the flag so a follow-up
+                // update_config (e.g. the user fixing the bot dir and
+                // saving again) gets another shot at spawning.
+                started_flag.store(false, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+    }
+
+    if claim_autoplay_manager_spawn(autoplay_now_enabled, &state.autoplay_manager_started) {
+        let cfg_for_ap = state.config.clone();
+        let ctx_for_ap = state.autoplay_context.clone();
+        let tracker_for_ap = state.game_tracker.clone();
+        let mjai_for_ap = state.mjai_bus.clone();
+        let resp_for_ap = state.bot_response_bus.clone();
+        let notify_for_ap = state.notify_bus.clone();
+        let config_dir_for_ap = state
+            .config_path
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .unwrap_or_default();
+        let started_flag = state.autoplay_manager_started.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::autoplay::run_autoplay_manager(
+                cfg_for_ap,
+                ctx_for_ap,
+                tracker_for_ap,
+                mjai_for_ap,
+                resp_for_ap,
+                notify_for_ap,
+                config_dir_for_ap,
+            )
+            .await
+            {
+                tracing::error!("Autoplay manager failed: {e:#}");
+                started_flag.store(false, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+    }
+    Ok(())
+}
+
+/// Flip `overlay.enabled` and apply it, without going through the Settings
+/// page's whole-config save.
+///
+/// The overlay's own close button is the reason this exists: closing the
+/// window has to *stay* closed across restarts, and the overlay webview has no
+/// business round-tripping (and re-persisting) an entire `AppConfig` it never
+/// loaded.
+#[tauri::command]
+pub async fn set_overlay_enabled(enabled: bool, app: AppHandle, state: Acct) -> CmdResult<()> {
+    let cfg = {
+        let mut cfg = state.config.write().await;
+        cfg.overlay.enabled = enabled;
+        cfg.clone()
+    };
+    persist_config(&cfg, &state.config_path).map_err(|e| e.to_string())?;
+    if app
+        .try_state::<Hub>()
+        .is_some_and(|hub| hub.active_id() == *state.account_id)
+    {
+        overlay::reconcile(&app, &cfg.overlay);
+    }
+    Ok(())
+}
+
+/// Synthetic `BotInfo` entries for the built-in native bots. They have no
+/// directory, no `pyproject.toml`, and are always "ready" (weights are embedded
+/// in the binary — nothing to install).
+fn native_bot_infos() -> Vec<BotInfo> {
+    [
+        crate::bot::native::MORA_3P,
+        crate::bot::native::MORA_4P,
+        crate::bot::native::YAKUMAN_3P,
+        crate::bot::native::YAKUMAN_4P,
+    ]
+    .into_iter()
+    .map(|name| BotInfo {
+        name: name.to_string(),
+        dir: String::new(),
+        has_pyproject: false,
+        env_ready: true,
+        manifest: None,
+    })
+    .collect()
+}
+
+#[tauri::command]
+pub async fn list_bots(state: Acct) -> CmdResult<Vec<BotInfo>> {
+    let dir = state.config.read().await.bot.dir.clone();
+    let resolved = resolve_dir(Path::new(&dir));
+    let registry = BotRegistry::scan(&resolved).map_err(|e| format!("scan bots: {e:#}"))?;
+    // Built-in native bots first, then discovered `mjai_bot/*` bots.
+    let mut bots = native_bot_infos();
+    bots.extend(registry.entries().iter().map(entry_to_info));
+    Ok(bots)
+}
+
+/// Read the merged settings (manifest + on-disk values) for one bot.
+/// Returns an error when the bot does not exist or has no manifest —
+/// frontend should hide the settings panel for manifest-less bots and
+/// avoid calling this command for them.
+#[tauri::command]
+pub async fn get_bot_settings(name: String, state: Acct) -> CmdResult<BotSettings> {
+    let dir = state.config.read().await.bot.dir.clone();
+    let resolved = resolve_dir(Path::new(&dir));
+    let registry = BotRegistry::scan(&resolved).map_err(|e| format!("scan bots: {e:#}"))?;
+    let entry = registry
+        .find(&name)
+        .ok_or_else(|| format!("bot {name:?} not found"))?;
+    let manifest = entry
+        .manifest
+        .clone()
+        .ok_or_else(|| format!("bot {name:?} has no manifest.toml"))?;
+    let values = manifest::load_values(&entry.dir, &manifest)
+        .map_err(|e| format!("load settings: {e:#}"))?;
+    Ok(BotSettings { manifest, values })
+}
+
+/// Persist user-edited settings for one bot. Validates the values against
+/// the manifest before writing — wrong type, out-of-range numeric, and
+/// unknown enum choice all surface as command errors.
+///
+/// New values take effect on the next bot spawn (i.e. the next
+/// `start_game` event). The currently-running subprocess keeps its old
+/// values; document this caveat in the UI.
+#[tauri::command]
+pub async fn update_bot_settings(
+    name: String,
+    values: BTreeMap<String, serde_json::Value>,
+    state: Acct,
+) -> CmdResult<()> {
+    let dir = state.config.read().await.bot.dir.clone();
+    let resolved = resolve_dir(Path::new(&dir));
+    let registry = BotRegistry::scan(&resolved).map_err(|e| format!("scan bots: {e:#}"))?;
+    let entry = registry
+        .find(&name)
+        .ok_or_else(|| format!("bot {name:?} not found"))?;
+    let manifest = entry
+        .manifest
+        .as_ref()
+        .ok_or_else(|| format!("bot {name:?} has no manifest.toml"))?;
+    manifest::save_values(&entry.dir, manifest, &values)
+        .map_err(|e| format!("save settings: {e:#}"))?;
+    let _ = state
+        .notify_bus
+        .send(Notification::success(format!("{name} settings saved")));
+    Ok(())
+}
+
+/// Update the active bot for a given mode (`"4p"` or `"3p"`) in config +
+/// persist. Doesn't restart the running `BotManager` — it reads the active
+/// bot fresh from the shared config at each `start_game`, so the next game
+/// picks up this change with no relaunch (an in-progress game keeps its bot).
+///
+/// Empty `name` clears that mode's active bot (analysis-only in that mode).
+///
+/// Refuses to activate a bot whose Python environment isn't installed yet:
+/// otherwise the bot's first in-game spawn would run `uv sync`, which can
+/// exceed the react time limit and error. Clearing (empty `name`) is always
+/// allowed.
+#[tauri::command]
+pub async fn set_active_bot(mode: String, name: String, state: Acct) -> CmdResult<()> {
+    if crate::bot::native::in_force(&name) != name {
+        return Err(crate::license::PRO_REQUIRED.into());
+    }
+    // Built-in native bots are always available (no venv); skip the registry
+    // + environment checks that only apply to Python `mjai_bot/*` bots.
+    if !name.is_empty() && !crate::bot::native::is_native(&name) {
+        let dir = state.config.read().await.bot.dir.clone();
+        let resolved = resolve_dir(Path::new(&dir));
+        let registry = BotRegistry::scan(&resolved).map_err(|e| format!("scan bots: {e:#}"))?;
+        let entry = registry
+            .find(&name)
+            .ok_or_else(|| format!("bot {name:?} not found"))?;
+        if !runtime::is_synced(&entry.dir) {
+            return Err(format!(
+                "Bot {name:?}'s Python environment isn't installed yet — install or sync it before setting it active."
+            ));
+        }
+    }
+    {
+        let mut cfg = state.config.write().await;
+        apply_active_bot(&mut cfg.bot, &mode, &name)?;
+        // Games recorded from here on are stamped with this bot: the history
+        // recorder reads its own copy, which only `update_config` used to
+        // refresh — so a switch made here left every game after it recorded
+        // under the bot before it, until the next save or restart.
+        *state
+            .history_bots
+            .write()
+            .expect("history bots lock poisoned") =
+            crate::history::recorder::ActiveBots::from_config(&cfg.bot);
+        persist_config(&cfg, &state.config_path).map_err(|e| e.to_string())?;
+    }
+    let label = if name.is_empty() {
+        format!("{mode} bot cleared")
+    } else {
+        format!("Active {mode} bot set to {name}")
+    };
+    let _ = state.notify_bus.send(Notification::success(label));
+    Ok(())
+}
+
+/// Set the active bot of `mode` (`"4p"` / `"3p"`) in `bot`.
+fn apply_active_bot(bot: &mut crate::config::BotConfig, mode: &str, name: &str) -> CmdResult<()> {
+    match mode {
+        "4p" => bot.active_4p = name.to_string(),
+        "3p" => bot.active_3p = name.to_string(),
+        other => return Err(format!("unknown mode {other:?}; expected \"4p\" or \"3p\"")),
+    }
+    Ok(())
+}
+
+/// Install a bot by downloading the latest release zip from a GitHub
+/// repository. Refuses to overwrite an existing `mjai_bot/<name>/` —
+/// the user must remove it first via the file browser. The installer
+/// reports progress through `NotifyBus` with sticky id
+/// `bot-install-<name>`.
+#[tauri::command]
+pub async fn install_bot_from_github(
+    repo: String,
+    asset_glob: Option<String>,
+    name: Option<String>,
+    state: Acct,
+) -> CmdResult<BotInfo> {
+    let (dir, net) = {
+        let cfg = state.config.read().await;
+        (cfg.bot.dir.clone(), cfg.network.clone())
+    };
+    let resolved = resolve_dir(Path::new(&dir));
+    std::fs::create_dir_all(&resolved)
+        .map_err(|e| format!("create bot dir {}: {e}", resolved.display()))?;
+
+    let spec = GithubInstallSpec {
+        repo,
+        asset_glob,
+        name,
+    };
+    let entry = install::install_from_github_release(
+        spec,
+        &resolved,
+        &state.notify_bus,
+        state.runtime.as_ref(),
+        &net,
+    )
+    .await
+    .map_err(|e| format!("install: {e:#}"))?;
+    Ok(entry_to_info(&entry))
+}
+
+/// Install a bot from a local `.zip` file the user picked (typically via the
+/// native file dialog). Runs the same pipeline as
+/// [`install_bot_from_github`] minus the release download. Refuses to
+/// overwrite an existing `mjai_bot/<name>/`; the source zip is never deleted.
+/// Reports progress through `NotifyBus` with sticky id `bot-install-<name>`.
+#[tauri::command]
+pub async fn install_bot_from_zip(
+    zip_path: String,
+    name: Option<String>,
+    state: Acct,
+) -> CmdResult<BotInfo> {
+    let p = Path::new(&zip_path);
+    if !p.is_file() {
+        return Err(format!("{zip_path} is not a file"));
+    }
+    if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("zip")) {
+        return Err(format!("{zip_path} is not a .zip file"));
+    }
+
+    let dir = state.config.read().await.bot.dir.clone();
+    let resolved = resolve_dir(Path::new(&dir));
+    std::fs::create_dir_all(&resolved)
+        .map_err(|e| format!("create bot dir {}: {e}", resolved.display()))?;
+
+    let spec = LocalZipInstallSpec {
+        zip_path: p.to_path_buf(),
+        name,
+    };
+    let entry =
+        install::install_from_zip(spec, &resolved, &state.notify_bus, state.runtime.as_ref())
+            .await
+            .map_err(|e| format!("install: {e:#}"))?;
+    Ok(entry_to_info(&entry))
+}
+
+/// Reinstall a bot from the GitHub source declared in its existing
+/// `manifest.toml`. Removes the current install first.
+#[tauri::command]
+pub async fn update_bot_from_manifest(name: String, state: Acct) -> CmdResult<BotInfo> {
+    let (dir, net) = {
+        let cfg = state.config.read().await;
+        (cfg.bot.dir.clone(), cfg.network.clone())
+    };
+    let resolved = resolve_dir(Path::new(&dir));
+    let registry = BotRegistry::scan(&resolved).map_err(|e| format!("scan bots: {e:#}"))?;
+    let entry = registry
+        .find(&name)
+        .ok_or_else(|| format!("bot {name:?} not found"))?;
+    let manifest = entry
+        .manifest
+        .as_ref()
+        .ok_or_else(|| format!("bot {name:?} has no manifest.toml"))?;
+    let source = manifest
+        .source
+        .as_ref()
+        .ok_or_else(|| format!("bot {name:?} manifest has no [bot.source] block"))?;
+
+    let (repo, asset_glob) = match source {
+        BotSource::GithubRelease { repo, asset_glob } => (repo.clone(), asset_glob.clone()),
+    };
+
+    std::fs::remove_dir_all(&entry.dir)
+        .map_err(|e| format!("remove old install {}: {e}", entry.dir.display()))?;
+
+    let spec = GithubInstallSpec {
+        repo,
+        asset_glob,
+        name: Some(name.clone()),
+    };
+    let new_entry = install::install_from_github_release(
+        spec,
+        &resolved,
+        &state.notify_bus,
+        state.runtime.as_ref(),
+        &net,
+    )
+    .await
+    .map_err(|e| format!("install: {e:#}"))?;
+    Ok(entry_to_info(&new_entry))
+}
+
+/// Re-run `uv sync` for an installed bot. Frontend wires this to the
+/// "Reinstall environment" button under Configure. `force=true` wipes
+/// `.mokora/synced.stamp` and `.mokora/venv` first so a corrupted venv is
+/// rebuilt from scratch (incremental sync can otherwise mask the breakage).
+/// Reports progress + outcome through `NotifyBus` with sticky id
+/// `bot-sync-<name>`. Refuses to start a second concurrent sync for the
+/// same bot.
+#[tauri::command]
+pub async fn sync_bot_deps(name: String, force: bool, state: Acct) -> CmdResult<()> {
+    let dir = state.config.read().await.bot.dir.clone();
+    let resolved = resolve_dir(Path::new(&dir));
+    let registry = BotRegistry::scan(&resolved).map_err(|e| format!("scan bots: {e:#}"))?;
+    let entry = registry
+        .find(&name)
+        .ok_or_else(|| format!("bot {name:?} not found"))?
+        .clone();
+    let runtime = state.runtime.as_ref().ok_or_else(|| {
+        "Python runtime not available — install python3 and uv on PATH".to_string()
+    })?;
+
+    let _guard = SyncGuard::acquire(&state.syncs_in_flight, &name)
+        .await
+        .ok_or_else(|| format!("sync already in progress for {name}"))?;
+
+    let notify_id = format!("bot-sync-{name}");
+    let _ = state.notify_bus.send(
+        Notification::info(format!("Syncing {name}"))
+            .body("Rebuilding Python environment (uv sync)…")
+            .sticky()
+            .id(notify_id.clone()),
+    );
+
+    if force {
+        runtime::reset_sync_state(&entry.dir).await;
+    }
+
+    match runtime.ensure_synced(&entry.dir).await {
+        Ok(()) => {
+            let _ = state
+                .notify_bus
+                .send(Notification::success(format!("{name} environment ready")).id(notify_id));
+            Ok(())
+        }
+        Err(e) => {
+            let msg = format!("uv sync failed: {e:#}");
+            let _ = state.notify_bus.send(
+                Notification::error(format!("Sync failed for {name}"))
+                    .body(msg.clone())
+                    .id(notify_id),
+            );
+            Err(msg)
+        }
+    }
+}
+
+/// Start the capture backend selected by `cfg.capture.mode`. No-op
+/// (returns Err) when one is already running — call `restart_capture`
+/// instead if you want to swap.
+#[tauri::command]
+pub async fn start_capture(state: Acct) -> CmdResult<()> {
+    let already_running = {
+        let ctl = state.capture_control.lock().await;
+        ctl.stop.is_some()
+    };
+    if already_running {
+        return Err("capture backend already running".into());
+    }
+    spawn_capture_supervisor((*state).clone())
+        .await
+        .map_err(|e| format!("start capture: {e:#}"))
+}
+
+/// Tear down the running backend and start a fresh one. Used by the
+/// Settings "Restart capture" button and by `update_config` whenever a
+/// capture-affecting field changed. Safe to call when nothing is
+/// running (becomes a plain start).
+#[tauri::command]
+pub async fn restart_capture(state: Acct) -> CmdResult<()> {
+    restart_capture_inner((*state).clone())
+        .await
+        .map_err(|e| format!("restart capture: {e:#}"))
+}
+
+/// The Settings page's "start auto play" button: queue a game from the lobby
+/// now, after which the next-game flow carries on by itself (see
+/// `autoplay::next_game`).
+///
+/// Only wakes the flow — what happened is reported through the toast channel
+/// when it finishes, since the sequence takes the best part of a minute. The
+/// autoplay manager (which owns that flow) is only running once autoplay has
+/// been enabled and saved, so that is checked here rather than letting the
+/// press vanish into nothing.
+#[tauri::command]
+pub async fn autoplay_next_game_start(state: Acct) -> CmdResult<()> {
+    {
+        let cfg = state.config.read().await;
+        if !cfg.autoplay.enabled || !cfg.autoplay.next_game.enabled {
+            return Err("turn on autoplay and the next-game switch, and save, first".into());
+        }
+        if let Some(why) = crate::pro::refusal() {
+            return Err(why.into());
+        }
+    }
+    if state.autoplay_context.lobby.in_game() {
+        return Err("a game is in progress — use it from the lobby".into());
+    }
+    state.autoplay_context.next_game_start.notify_one();
+    Ok(())
+}
+
+/// The Settings page's "log in again" button: log out and back in (on the
+/// fastest gateway when `fastest_route` is on), from the lobby. See
+/// `autoplay::next_game`.
+#[tauri::command]
+pub async fn autoplay_relogin(state: Acct) -> CmdResult<()> {
+    if state.autoplay_context.page.read().await.is_none() {
+        return Err("the game page is not open".into());
+    }
+    if state.autoplay_context.lobby.in_game() {
+        return Err("a game is in progress — use it from the lobby".into());
+    }
+    state.autoplay_context.next_game_relogin.notify_one();
+    Ok(())
+}
+
+/// Probe the system for installed Chromium-family browsers. Surface in the
+/// Settings UI so the user can pick which executable to launch.
+#[tauri::command]
+pub async fn detect_system_chrome(
+) -> CmdResult<Vec<crate::capture::chromium::detect::DetectedBrowser>> {
+    Ok(crate::capture::chromium::detect::detect_system_browsers())
+}
+
+/// List Chrome-for-Testing versions currently installed under
+/// `<user_config_root>/chrome-for-testing/`. Newest first. Empty when
+/// nothing is installed or the platform isn't supported by CfT.
+#[tauri::command]
+pub async fn list_cft_installed() -> CmdResult<Vec<String>> {
+    Ok(crate::capture::chromium::cft::list_installed())
+}
+
+/// Show this account's game at this rectangle of the window (logical pixels
+/// from its top-left). The interface calls this whenever the placeholder it
+/// keeps for the game moves or changes size.
+#[tauri::command]
+pub fn place_game(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    hub: State<'_, Hub>,
+    state: Acct,
+) -> CmdResult<()> {
+    hub.place_game(
+        &state.account_id,
+        crate::hub::views::Bounds {
+            x,
+            y,
+            width,
+            height,
+        },
+    );
+    Ok(())
+}
+
+/// The site this account's game is on, for the status bar.
+#[tauri::command]
+pub fn game_site(app: AppHandle, state: Acct) -> Option<String> {
+    let view = app.get_webview(&crate::hub::views::game_label(&state.account_id))?;
+    view.url().ok()?.host_str().map(str::to_string)
+}
+
+/// Load this account's game page again.
+#[tauri::command]
+pub fn reload_game(app: AppHandle, state: Acct) -> CmdResult<()> {
+    match app.get_webview(&crate::hub::views::game_label(&state.account_id)) {
+        Some(view) => view.eval("location.reload()").map_err(|e| e.to_string()),
+        None => Ok(()),
+    }
+}
+
+/// Take this account's game off the screen (it keeps running).
+#[tauri::command]
+pub fn hide_game(hub: State<'_, Hub>, state: Acct) -> CmdResult<()> {
+    hub.hide_game(&state.account_id);
+    Ok(())
+}
+
+/// Close Mokora: every account's capture stops, then the window goes.
+#[tauri::command]
+pub async fn quit_app(hub: State<'_, Hub>) -> CmdResult<()> {
+    hub.quit_all().await;
+    Ok(())
+}
+
+/// Start `path` as a browser to see whether it works (see
+/// `capture::chromium::probe`). `Ok` means the setup may use it.
+#[tauri::command]
+pub async fn validate_browser_executable(path: String) -> CmdResult<()> {
+    crate::capture::chromium::probe::probe_executable(std::path::Path::new(path.trim()))
+        .await
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// The Chrome-for-Testing release `channel` names (`stable` / `beta` / `dev` /
+/// `canary` or a full version such as `131.0.6778.85`), or an error when there
+/// is no such release for this platform. Nothing is downloaded.
+#[tauri::command]
+pub async fn validate_cft_channel(channel: String) -> CmdResult<String> {
+    let channel = channel.trim();
+    let parsed = crate::capture::chromium::cft::Channel::parse(channel);
+    if let crate::capture::chromium::cft::Channel::Literal(v) = &parsed {
+        let shaped = v.split('.').count() == 4
+            && v.split('.')
+                .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+        if !shaped {
+            return Err("a version looks like 131.0.6778.85".into());
+        }
+    }
+    crate::capture::chromium::cft::resolve_version(&parsed)
+        .await
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// Download + extract Chrome-for-Testing for the current platform.
+/// `channel` is interpreted as: `"stable"` / `"beta"` / `"dev"` /
+/// `"canary"` (channel pin) or any literal version string (e.g.
+/// `"131.0.6778.85"`). Empty string ≡ `"stable"`. Returns the
+/// installed version.
+///
+/// Progress is reported through `NotifyBus` with sticky id
+/// `capture-cft-download` so the frontend can show a single live toast.
+#[tauri::command]
+pub async fn download_chrome_for_testing(
+    channel: Option<String>,
+    state: Acct,
+) -> CmdResult<String> {
+    let raw = channel.unwrap_or_default();
+    let parsed = crate::capture::chromium::cft::Channel::parse(&raw);
+    crate::capture::chromium::cft::install(&parsed, &state.notify_bus)
+        .await
+        .map_err(|e| format!("install Chrome for Testing: {e:#}"))
+}
+
+/// Remove an installed Chrome-for-Testing version. No-op when the
+/// version isn't installed.
+#[tauri::command]
+pub async fn remove_chrome_for_testing(version: String, state: Acct) -> CmdResult<()> {
+    if version.is_empty()
+        || version.contains('/')
+        || version.contains('\\')
+        || version.contains("..")
+    {
+        return Err(format!("invalid CfT version {version:?}"));
+    }
+    crate::capture::chromium::cft::remove(&version)
+        .map_err(|e| format!("remove Chrome for Testing: {e:#}"))?;
+    let _ = state.notify_bus.send(Notification::success(format!(
+        "Removed Chrome for Testing {version}"
+    )));
+    Ok(())
+}
+
+/// Stop the running capture backend. Kicks in-flight WebSocket flows
+/// (MITM mode) and signals the supervisor to tear down. Returns Err if
+/// nothing is running.
+#[tauri::command]
+pub async fn stop_capture(state: Acct) -> CmdResult<()> {
+    let (stop, force_close) = {
+        let mut ctl = state.capture_control.lock().await;
+        (ctl.stop.take(), ctl.force_close.clone())
+    };
+    // Kick in-flight WS flows first so the game client actually
+    // disconnects. Without this, hudsucker's graceful shutdown only
+    // blocks new connections; existing ones drain naturally and the
+    // user sees comm "still working" even after stop. (Chromium backend
+    // ignores this — its shutdown closes the browser process directly.)
+    force_close.notify_waiters();
+    match stop {
+        Some(tx) => {
+            // Receiver dropped means the task already exited — that's fine,
+            // we still cleared `stop` and the status forwarder will catch
+            // up via the next CaptureStatus emission.
+            let _ = tx.send(());
+            Ok(())
+        }
+        None => Err("capture backend is not running".into()),
+    }
+}
+
+#[tauri::command]
+pub async fn get_status(state: Acct) -> CmdResult<Snapshot> {
+    let config = state.config.read().await.clone();
+    let bot_status = state.bot_status.read().await.clone();
+    let capture_status = state.capture_control.lock().await.status.clone();
+    let log_dir = state.log_session.dir().to_path_buf();
+    Ok(Snapshot {
+        config,
+        bot_status,
+        capture_status,
+        log_dir,
+    })
+}
+
+/// One-shot read of the latest [`crate::schema::CaptureStatus`]. Cheaper
+/// than `get_status` when the caller only needs the capture lifecycle.
+#[tauri::command]
+pub async fn get_capture_status(state: Acct) -> CmdResult<crate::schema::CaptureStatus> {
+    Ok(state.capture_control.lock().await.status.clone())
+}
+
+/// One-shot read of the next-game flow's [`crate::schema::NextGameStatus`]
+/// (resting, queuing), for a page opened while it is under way.
+#[tauri::command]
+pub async fn get_next_game_status(state: Acct) -> CmdResult<crate::schema::NextGameStatus> {
+    Ok(state.autoplay_context.next_game_status.borrow().clone())
+}
+
+/// Every Mahjong Soul account Mokora knows, for the tabs and the picker (see
+/// `crate::accounts`).
+#[tauri::command]
+pub async fn list_accounts(
+    hub: State<'_, Hub>,
+    state: Acct,
+) -> CmdResult<Vec<crate::accounts::AccountInfo>> {
+    Ok(hub.list(&state.account_id).await)
+}
+
+/// Remember the interface language, so accounts opened later start in it.
+#[tauri::command]
+pub async fn set_ui_language(lang: String) -> CmdResult<()> {
+    crate::accounts::set_ui_language(&lang).map_err(|e| format!("{e:#}"))
+}
+
+/// Choose the picture of this account (base64 of a PNG, a small square).
+#[tauri::command]
+pub async fn set_account_avatar(png_base64: String, state: Acct) -> CmdResult<()> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(png_base64.trim())
+        .map_err(|e| format!("not base64: {e}"))?;
+    crate::accounts::set_avatar(&state.config_path, &bytes).map_err(|e| format!("{e:#}"))
+}
+
+/// Back to the initial letter instead of a picture.
+#[tauri::command]
+pub async fn clear_account_avatar(state: Acct) -> CmdResult<()> {
+    crate::accounts::clear_avatar(&state.config_path).map_err(|e| format!("{e:#}"))
+}
+
+/// The 個人資料 page: this account's coins, ranks, today's revive coins and
+/// the game's own statistics — what this session's traffic has shown, over
+/// what was saved before (`accounts::merge_profile`). `None` before the
+/// account has ever logged in.
+#[tauri::command]
+pub async fn get_profile(state: Acct) -> CmdResult<Option<crate::schema::AccountProfile>> {
+    let (_, live) = state.autoplay_context.lobby.profile();
+    let merged =
+        crate::accounts::merge_profile(crate::accounts::read_profile(&state.config_path), live);
+    Ok(merged.account_id.is_some().then_some(merged))
+}
+
+/// The 個人資料 page opened: have the next-game flow refresh the game's
+/// statistics of the player (it opens their profile in the game from the
+/// lobby and closes it again). Only wakes the flow, which is running while
+/// autoplay is on; it does nothing outside the lobby's main screen.
+#[tauri::command]
+pub async fn refresh_profile_stats(state: Acct) -> CmdResult<()> {
+    let autoplay = state.config.read().await.autoplay.clone();
+    if !autoplay.enabled
+        || !autoplay.next_game.refresh_profile
+        || state.autoplay_context.lobby.in_game()
+    {
+        return Ok(());
+    }
+    state.autoplay_context.profile_refresh.notify_one();
+    Ok(())
+}
+
+/// Add an account: a new config (this one's settings, its own login, logs and
+/// UI preferences), opened and shown at once — its game starts on the login.
+#[tauri::command]
+pub async fn add_account(hub: State<'_, Hub>, state: Acct) -> CmdResult<()> {
+    if !crate::accounts::may_add() {
+        return Err(crate::license::PRO_REQUIRED.into());
+    }
+    let template = state.config.read().await.clone();
+    let path = crate::accounts::create(&template).map_err(|e| format!("{e:#}"))?;
+    let id = crate::accounts::known()
+        .into_iter()
+        .find(|(_, p)| *p == path)
+        .map(|(id, _)| id)
+        .ok_or_else(|| "the new account is not listed".to_string())?;
+    hub.activate(&id).await.map_err(|e| format!("{e:#}"))
+}
+
+/// Show account `id` in the window — opened first if it is not open.
+#[tauri::command]
+pub async fn switch_account(id: String, hub: State<'_, Hub>) -> CmdResult<()> {
+    hub.activate(&id).await.map_err(|e| format!("{e:#}"))
+}
+
+/// Close account `id`: its game and runtime stop (the login is kept). The last
+/// open account stays.
+#[tauri::command]
+pub async fn logout_account(id: String, hub: State<'_, Hub>) -> CmdResult<()> {
+    hub.close(&id).await.map_err(|e| format!("{e:#}"))
+}
+
+/// Delete account `id` for good: its folder and login, its games in the
+/// history and their reviews (see `crate::accounts::remove`). Not the account
+/// the window shows. An open account is closed first.
+#[tauri::command]
+pub async fn delete_account(
+    id: String,
+    clear_records: Option<bool>,
+    hub: State<'_, Hub>,
+    state: Acct,
+) -> CmdResult<crate::accounts::Removed> {
+    if *state.account_id == *id {
+        return Err("this is the account the window shows; switch to another first".into());
+    }
+    hub.close(&id).await.map_err(|e| format!("{e:#}"))?;
+    let accounts = hub.list(&state.account_id).await;
+    let clear_records = clear_records.unwrap_or(true);
+    crate::accounts::remove_account(&state.history_store, &accounts, &id, clear_records)
+        .await
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// The bot folder `dir` (as configured, often relative) as the full path it
+/// resolves to on this machine.
+#[tauri::command]
+pub fn bot_dir_path(dir: String) -> String {
+    resolve_dir(Path::new(&dir)).display().to_string()
+}
+
+/// Make account `id` the one the window shows when Mokora starts.
+#[tauri::command]
+pub async fn set_startup_account(id: String) -> CmdResult<()> {
+    if !crate::accounts::known()
+        .iter()
+        .any(|(known, _)| *known == id)
+    {
+        return Err(format!("no account {id}"));
+    }
+    crate::accounts::set_startup_account(&id).map_err(|e| format!("{e:#}"))
+}
+
+/// Share the game page's layout with every account (the "sync layout"
+/// button); each Mokora applies it once, by its stamp. Returns the stamp.
+#[tauri::command]
+pub async fn share_layout(layout: serde_json::Value) -> CmdResult<u64> {
+    crate::accounts::share_layout(layout).map_err(|e| format!("{e:#}"))
+}
+
+/// The layout last shared with every account, if one was.
+#[tauri::command]
+pub async fn get_shared_layout() -> CmdResult<Option<crate::accounts::SharedLayout>> {
+    Ok(crate::accounts::shared_layout())
+}
+
+#[tauri::command]
+pub async fn get_log_dir(state: Acct) -> CmdResult<PathBuf> {
+    Ok(state.log_session.dir().to_path_buf())
+}
+
+/// Best-effort "open this folder in the OS file manager". Spawns the
+/// platform-native opener and returns immediately — we don't wait on the
+/// child, so a missing tool surfaces only if `spawn` itself fails. The
+/// frontend already wraps this in try/catch.
+#[tauri::command]
+pub async fn open_log_folder(session: Option<String>, state: Acct) -> CmdResult<()> {
+    let target = match session {
+        Some(name) if !name.is_empty() => {
+            // Defense-in-depth: only allow the canonical session name
+            // shape — no `..`, no separators — so a malicious frontend
+            // can't redirect this to anywhere else on disk.
+            if !is_session_name(&name) {
+                return Err(format!("invalid session name {name:?}"));
+            }
+            state.log_session.root().join(name)
+        }
+        _ => state.log_session.dir().to_path_buf(),
+    };
+    open_path(&target)
+}
+
+fn open_path(path: &Path) -> CmdResult<()> {
+    #[cfg(target_os = "linux")]
+    let cmd = "xdg-open";
+    #[cfg(target_os = "macos")]
+    let cmd = "open";
+    #[cfg(target_os = "windows")]
+    let cmd = "explorer";
+
+    std::process::Command::new(cmd)
+        .arg(path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("open path {}: {e}", path.display()))
+}
+
+/// Opens an `http(s)://` URL in the user's default browser. Used by the
+/// release page links — Tauri 2's webview won't reliably honour `target="_blank"`
+/// without the opener plugin, so we route the click through the OS's native
+/// handler ourselves. Validates the scheme to keep this from being abused as
+/// a generic process spawn.
+///
+/// Goes through the `opener` crate (ShellExecuteW on Windows, `open` on
+/// macOS, xdg-open on Linux) rather than spawning `explorer <url>`:
+/// explorer.exe silently opens the Documents folder instead of the browser
+/// when the URL carries a query string (e.g. `?token=...`).
+#[tauri::command]
+pub async fn open_external_url(url: String) -> CmdResult<()> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(format!("refused non-http(s) url: {url}"));
+    }
+    // `opener::open` can block briefly (it may wait on the launcher), so keep
+    // it off the async runtime.
+    tauri::async_runtime::spawn_blocking(move || {
+        opener::open(&url).map_err(|e| format!("open url {url}: {e}"))
+    })
+    .await
+    .map_err(|e| format!("open url task: {e}"))?
+}
+
+/// Strict matcher for session directory names — `YYYYMMDD-HHMMSS`. Used
+/// both to filter `list_log_sessions` output and to validate user-
+/// supplied session names before they touch the filesystem.
+fn is_session_name(name: &str) -> bool {
+    if name.len() != 15 {
+        return false;
+    }
+    let bytes = name.as_bytes();
+    bytes.iter().enumerate().all(|(i, &b)| {
+        if i == 8 {
+            b == b'-'
+        } else {
+            b.is_ascii_digit()
+        }
+    })
+}
+
+/// List every session directory under the active log root. Newest first.
+/// `is_active` marks the session this process is currently writing — the
+/// UI uses it to enable live tail.
+#[tauri::command]
+pub async fn list_log_sessions(state: Acct) -> CmdResult<Vec<LogSessionInfo>> {
+    let active_name = state
+        .log_session
+        .dir()
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+    let root = state.log_session.root().to_path_buf();
+
+    tokio::task::spawn_blocking(move || -> Result<Vec<LogSessionInfo>, String> {
+        let mut out = Vec::new();
+        let rd = match std::fs::read_dir(&root) {
+            Ok(rd) => rd,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(out),
+            Err(e) => return Err(format!("read_dir {}: {e}", root.display())),
+        };
+        for entry in rd.flatten() {
+            let Ok(ft) = entry.file_type() else { continue };
+            if !ft.is_dir() {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !is_session_name(&name) {
+                continue;
+            }
+            let path = entry.path();
+            // Cheap directory size: sum file sizes in the immediate dir.
+            // Sub-directories (per-platform flow logs) are NOT walked —
+            // for the UI it's enough to be a rough indicator, and a
+            // recursive walk on a session with thousands of game files
+            // would block the picker.
+            let mut size_bytes: u64 = 0;
+            if let Ok(rd2) = std::fs::read_dir(&path) {
+                for f in rd2.flatten() {
+                    if let Ok(m) = f.metadata() {
+                        if m.is_file() {
+                            size_bytes += m.len();
+                        }
+                    }
+                }
+            }
+            let mtime_ms = entry
+                .metadata()
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0);
+            let is_active = name == active_name;
+            out.push(LogSessionInfo {
+                name,
+                path,
+                size_bytes,
+                mtime_ms,
+                is_active,
+            });
+        }
+        out.sort_by(|a, b| b.name.cmp(&a.name));
+        Ok(out)
+    })
+    .await
+    .map_err(|e| format!("list_log_sessions join: {e}"))?
+}
+
+/// Read filtered, paginated entries from one session's `all.jsonl`.
+///
+/// Filtering is server-side so a frontend opening a 100k-line session can
+/// still ask "just the errors" without dragging the whole file across the
+/// wire. The reader is line-oriented — one bad line is counted under
+/// `skipped_malformed` and skipped, so a partial trailing line in the
+/// active session (still being written) doesn't poison the response.
+/// `limit` is capped at 2000 to bound payload size.
+#[tauri::command]
+pub async fn read_log_session(req: ReadLogRequest, state: Acct) -> CmdResult<ReadLogResponse> {
+    if !is_session_name(&req.session) {
+        return Err(format!("invalid session name {:?}", req.session));
+    }
+    let root = state.log_session.root().to_path_buf();
+
+    tokio::task::spawn_blocking(move || -> Result<ReadLogResponse, String> {
+        let path = root.join(&req.session).join("all.jsonl");
+        let file = match std::fs::File::open(&path) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(ReadLogResponse {
+                    entries: Vec::new(),
+                    has_more: false,
+                    skipped_malformed: 0,
+                });
+            }
+            Err(e) => return Err(format!("open {}: {e}", path.display())),
+        };
+        let reader = std::io::BufReader::new(file);
+        use std::io::BufRead;
+
+        let level_set: Option<std::collections::HashSet<String>> =
+            req.levels.as_ref().map(|v| v.iter().cloned().collect());
+        let target_filters: Vec<String> = req.targets.unwrap_or_default();
+        let search_lc = req.search.as_deref().map(|s| s.to_lowercase());
+        // 0 → use a sane default (1000); otherwise hard-cap at 2000.
+        let limit = if req.limit == 0 {
+            1000
+        } else {
+            req.limit.min(2000)
+        };
+
+        let mut skipped_malformed: u32 = 0;
+        let mut total_match: usize = 0;
+        let mut entries: Vec<LogEntry> = Vec::with_capacity(limit);
+
+        for line in reader.lines() {
+            let line = match line {
+                Ok(l) => l,
+                Err(_) => break,
+            };
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let entry: LogEntry = match serde_json::from_str(trimmed) {
+                Ok(e) => e,
+                Err(_) => {
+                    skipped_malformed += 1;
+                    continue;
+                }
+            };
+            if let Some(ref ls) = level_set {
+                if !ls.contains(&entry.level) {
+                    continue;
+                }
+            }
+            if !target_filters.is_empty()
+                && !target_filters.iter().any(|t| entry.target.starts_with(t))
+            {
+                continue;
+            }
+            if let Some(ref s) = search_lc {
+                if !entry.message.to_lowercase().contains(s) {
+                    continue;
+                }
+            }
+            total_match += 1;
+            if total_match > req.offset && entries.len() < limit {
+                entries.push(entry);
+            }
+        }
+
+        let has_more = total_match > req.offset + entries.len();
+        Ok(ReadLogResponse {
+            entries,
+            has_more,
+            skipped_malformed,
+        })
+    })
+    .await
+    .map_err(|e| format!("read_log_session join: {e}"))?
+}
+
+/// Read filtered, paginated entries from a session's `inspector.jsonl`.
+/// Same line-oriented, fault-tolerant reader as `read_log_session` —
+/// malformed lines bumped under `skipped_malformed`, `limit` capped at
+/// 2000. Filtering is server-side so a session with hundreds of
+/// thousands of events doesn't have to cross the wire to be narrowed.
+#[tauri::command]
+pub async fn read_inspector(
+    req: ReadInspectorRequest,
+    state: Acct,
+) -> CmdResult<ReadInspectorResponse> {
+    if !is_session_name(&req.session) {
+        return Err(format!("invalid session name {:?}", req.session));
+    }
+    let root = state.log_session.root().to_path_buf();
+
+    tokio::task::spawn_blocking(move || -> Result<ReadInspectorResponse, String> {
+        let path = root.join(&req.session).join("inspector.jsonl");
+        let file = match std::fs::File::open(&path) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(ReadInspectorResponse {
+                    entries: Vec::new(),
+                    has_more: false,
+                    skipped_malformed: 0,
+                });
+            }
+            Err(e) => return Err(format!("open {}: {e}", path.display())),
+        };
+        let reader = std::io::BufReader::new(file);
+        use std::io::BufRead;
+
+        let kind_set: Option<std::collections::HashSet<String>> =
+            req.kinds.as_ref().map(|v| v.iter().cloned().collect());
+        let actor = req.actor;
+        let search_lc = req.search.as_deref().map(|s| s.to_lowercase());
+        let limit = if req.limit == 0 {
+            1000
+        } else {
+            req.limit.min(2000)
+        };
+
+        let mut skipped_malformed: u32 = 0;
+        let mut total_match: usize = 0;
+        let mut entries: Vec<InspectorEntry> = Vec::with_capacity(limit);
+
+        for line in reader.lines() {
+            let line = match line {
+                Ok(l) => l,
+                Err(_) => break,
+            };
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let entry: InspectorEntry = match serde_json::from_str(trimmed) {
+                Ok(e) => e,
+                Err(_) => {
+                    skipped_malformed += 1;
+                    continue;
+                }
+            };
+            if !inspector_matches(&entry, kind_set.as_ref(), actor, search_lc.as_deref()) {
+                continue;
+            }
+            total_match += 1;
+            if total_match > req.offset && entries.len() < limit {
+                entries.push(entry);
+            }
+        }
+
+        let has_more = total_match > req.offset + entries.len();
+        Ok(ReadInspectorResponse {
+            entries,
+            has_more,
+            skipped_malformed,
+        })
+    })
+    .await
+    .map_err(|e| format!("read_inspector join: {e}"))?
+}
+
+/// Predicate factored out of `read_inspector` so the filtering rules are
+/// in one place (and easy to test, when we add tests for the inspector
+/// pipeline). `kind_set` matches against the `kind` discriminant; `actor`
+/// matches mjai events with an `actor` field and bot reactions by
+/// `actor_id`; ws frames are unaffected by the actor filter (they're
+/// pre-bridge, no actor concept yet) — they only drop out via `kinds`.
+fn inspector_matches(
+    entry: &InspectorEntry,
+    kind_set: Option<&std::collections::HashSet<String>>,
+    actor: Option<u8>,
+    search_lc: Option<&str>,
+) -> bool {
+    let kind = match entry {
+        InspectorEntry::WsFrame { .. } => "ws_frame",
+        InspectorEntry::MjaiEvent { .. } => "mjai_event",
+        InspectorEntry::BotReaction { .. } => "bot_reaction",
+        InspectorEntry::Http { .. } => "http",
+    };
+    if let Some(ks) = kind_set {
+        if !ks.contains(kind) {
+            return false;
+        }
+    }
+    if let Some(a) = actor {
+        match entry {
+            InspectorEntry::WsFrame { .. } => {} // pre-bridge, no actor
+            // Describes the client, not any seat — same treatment as a
+            // ws frame: only the `kinds` filter can drop it.
+            InspectorEntry::Http { .. } => {}
+            InspectorEntry::MjaiEvent { event, .. } => {
+                if let Some(ev_actor) = mjai_event_actor(event) {
+                    if ev_actor != a {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+            InspectorEntry::BotReaction { reaction, .. } => {
+                if reaction.actor_id != a {
+                    return false;
+                }
+            }
+        }
+    }
+    if let Some(s) = search_lc {
+        let hay = match entry {
+            InspectorEntry::WsFrame { raw, parsed, .. } => {
+                let mut buf = match raw {
+                    crate::schema::FrameRaw::Text(t) => t.to_lowercase(),
+                    crate::schema::FrameRaw::Binary(b) => b.to_lowercase(),
+                };
+                if let Some(p) = parsed {
+                    buf.push(' ');
+                    buf.push_str(&p.method.to_lowercase());
+                    buf.push(' ');
+                    buf.push_str(&p.args.to_string().to_lowercase());
+                }
+                buf
+            }
+            InspectorEntry::MjaiEvent { event, .. } => serde_json::to_string(event)
+                .unwrap_or_default()
+                .to_lowercase(),
+            InspectorEntry::BotReaction { reaction, .. } => serde_json::to_string(reaction)
+                .unwrap_or_default()
+                .to_lowercase(),
+            // The whole exchange, so a search for a URL, a header, a
+            // status, or anything a recognizer decoded all hit.
+            InspectorEntry::Http { exchange, .. } => serde_json::to_string(exchange)
+                .unwrap_or_default()
+                .to_lowercase(),
+        };
+        if !hay.contains(s) {
+            return false;
+        }
+    }
+    true
+}
+
+fn mjai_event_actor(event: &crate::schema::MjaiEvent) -> Option<u8> {
+    use crate::schema::MjaiEvent as E;
+    match event {
+        E::Tsumo { actor, .. }
+        | E::Dahai { actor, .. }
+        | E::Chi { actor, .. }
+        | E::Pon { actor, .. }
+        | E::Daiminkan { actor, .. }
+        | E::Kakan { actor, .. }
+        | E::Ankan { actor, .. }
+        | E::Reach { actor, .. }
+        | E::ReachAccepted { actor }
+        | E::Hora { actor, .. }
+        | E::Kita { actor, .. } => Some(*actor),
+        _ => None,
+    }
+}
+
+/// Subscribe to live inspector events. Same shape and lossy semantics as
+/// `subscribe_log_events`. The Logs → Inspector tab uses this for the
+/// active session's live tail.
+#[tauri::command]
+pub async fn subscribe_inspector(
+    state: Acct,
+    on_event: tauri::ipc::Channel<InspectorEntry>,
+) -> CmdResult<()> {
+    let mut rx = state.log_session.subscribe_inspector();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            match rx.recv().await {
+                Ok(entry) => {
+                    let _ = on_event.send(entry);
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    // Inject a synthetic mjai-event-shaped warn marker so
+                    // the UI sees the gap. We piggyback on MjaiEvent::None
+                    // — the inspector tab knows to render dropped-event
+                    // markers when it sees `none` interleaved.
+                    let warn = InspectorEntry::MjaiEvent {
+                        ts_ms: chrono::Local::now().timestamp_millis(),
+                        event: crate::schema::MjaiEvent::None,
+                    };
+                    let _ = on_event.send(warn);
+                    tracing::warn!(
+                        target: "mokora.inspector",
+                        "inspector forwarder dropped {n} entries"
+                    );
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    });
+    Ok(())
+}
+
+/// Subscribe to live log events. Each event the active session emits is
+/// forwarded over the supplied `tauri::ipc::Channel`. Slow consumers
+/// surface a synthetic `WARN mokora.logger "dropped N events…"` so the
+/// UI can show the gap explicitly. The forwarder task lives until the
+/// broadcast is closed (process shutdown).
+#[tauri::command]
+pub async fn subscribe_log_events(
+    state: Acct,
+    on_event: tauri::ipc::Channel<LogEntry>,
+) -> CmdResult<()> {
+    let mut rx = state.log_session.subscribe();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            match rx.recv().await {
+                Ok(entry) => {
+                    let _ = on_event.send(entry);
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    let warn = LogEntry {
+                        ts_ms: chrono::Local::now().timestamp_millis(),
+                        level: "WARN".into(),
+                        target: "mokora.logger".into(),
+                        file: None,
+                        line: None,
+                        message: format!("dropped {n} log events (consumer too slow)"),
+                        fields: std::collections::HashMap::new(),
+                    };
+                    let _ = on_event.send(warn);
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    });
+    Ok(())
+}
+
+/// Latest analysis output. `None` until the analysis runner has produced
+/// at least one result for the current game.
+#[tauri::command]
+pub async fn get_analysis(state: Acct) -> CmdResult<Option<AnalysisResult>> {
+    Ok(state.analysis_cache.read().await.clone())
+}
+
+/// Live game-state snapshot from the tracker. `None` before any
+/// `start_game` event has been observed.
+#[tauri::command]
+pub async fn get_game_snapshot(state: Acct) -> CmdResult<Option<GameStateSnapshot>> {
+    Ok(state.game_tracker.lock().await.snapshot())
+}
+
+/// Score a hypothetical bot hora (ron or tsumo) against the live engine
+/// state. The bot's own `hora` mjai response carries no score data
+/// (`deltas` is only populated on the inbound mjai event from the platform
+/// after the win is confirmed). The frontend's `BotActionTile` calls this
+/// to display "+8000點" beside the action label.
+///
+/// Returns `None` when no game is in progress, when the actor's hand isn't
+/// a valid agari shape, or when the winning tile can't be inferred from
+/// the live state (no recent discard for ron / no recent draw for tsumo).
+#[tauri::command]
+pub async fn compute_bot_hora_score(
+    actor: u8,
+    is_tsumo: bool,
+    state: Acct,
+) -> CmdResult<Option<HoraScoreInfo>> {
+    Ok(state
+        .game_tracker
+        .lock()
+        .await
+        .evaluate_hora(actor, is_tsumo))
+}
+
+/// Pre-encoded mahgen DSL strings ready for the frontend `<mah-gen>`
+/// element. Built from the same snapshot as `get_game_snapshot` — call
+/// whichever the UI surface prefers; both are O(34 tiles) to generate.
+#[tauri::command]
+pub async fn get_mahgen_view(state: Acct) -> CmdResult<Option<MahgenView>> {
+    Ok(state
+        .game_tracker
+        .lock()
+        .await
+        .snapshot()
+        .map(|s| MahgenView::from_snapshot(&s)))
+}
+
+/// Remove a bot's directory under `bot.dir/<name>/`. Refuses to delete
+/// the currently-active bot — user must `set_active_bot` to a different
+/// one first. Refuses target paths that escape `bot.dir` (defense in
+/// depth even though `name` came from the bot list, not raw user input).
+#[tauri::command]
+pub async fn delete_bot(name: String, state: Acct) -> CmdResult<()> {
+    let (active_4p, active_3p, dir) = {
+        let cfg = state.config.read().await;
+        (
+            cfg.bot.active_4p.clone(),
+            cfg.bot.active_3p.clone(),
+            cfg.bot.dir.clone(),
+        )
+    };
+    if active_4p == name || active_3p == name {
+        return Err(format!(
+            "{name:?} is an active bot (4p or 3p) — switch to a different bot first"
+        ));
+    }
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err(format!("invalid bot name {name:?}"));
+    }
+    let resolved_root = resolve_dir(Path::new(&dir));
+    let target = resolved_root.join(&name);
+    if !target.is_dir() {
+        return Err(format!("bot {name:?} not found at {}", target.display()));
+    }
+    let canon_root = std::fs::canonicalize(&resolved_root)
+        .map_err(|e| format!("canonicalize {}: {e}", resolved_root.display()))?;
+    let canon_target = std::fs::canonicalize(&target)
+        .map_err(|e| format!("canonicalize {}: {e}", target.display()))?;
+    if !canon_target.starts_with(&canon_root) {
+        return Err(format!("bot {name:?} resolves outside the bot directory"));
+    }
+    std::fs::remove_dir_all(&canon_target)
+        .map_err(|e| format!("remove {}: {e}", canon_target.display()))?;
+    let _ = state
+        .notify_bus
+        .send(Notification::success(format!("Deleted bot {name}")));
+    Ok(())
+}
+
+// ---------- Game history ----------
+//
+// Reads/writes are delegated to `state.history_store`. All errors bubble
+// up as user-readable strings (the store error chain via anyhow has the
+// detail we need; `:#` prints the full chain).
+
+/// Filtered, paginated listing of finalised games. Newest-first by
+/// `started_at`. `limit == 0` means use the store's default cap.
+#[tauri::command]
+pub async fn list_game_history(
+    filter: Option<HistoryFilter>,
+    limit: Option<u32>,
+    offset: Option<u32>,
+    state: Acct,
+) -> CmdResult<Vec<GameRecord>> {
+    let store = state.history_store.clone();
+    let filter = filter.unwrap_or_default();
+    let limit = limit.unwrap_or(0);
+    let offset = offset.unwrap_or(0);
+    tokio::task::spawn_blocking(move || store.list(&filter, limit, offset))
+        .await
+        .map_err(|e| format!("history list join error: {e}"))?
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// Single record by id.
+#[tauri::command]
+pub async fn get_game_history_record(id: String, state: Acct) -> CmdResult<Option<GameRecord>> {
+    let store = state.history_store.clone();
+    tokio::task::spawn_blocking(move || store.get(&id))
+        .await
+        .map_err(|e| format!("history get join error: {e}"))?
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// Full mjai event stream for a recorded game. `None` if the id is unknown.
+#[tauri::command]
+pub async fn get_game_history_events(
+    id: String,
+    state: Acct,
+) -> CmdResult<Option<HistoryEventLog>> {
+    let store = state.history_store.clone();
+    tokio::task::spawn_blocking(move || store.get_events(&id))
+        .await
+        .map_err(|e| format!("history get_events join error: {e}"))?
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// Which tiles were dealt in across the given recorded games (the ones the
+/// History page is showing — its player / 3p-4p / date filters already
+/// applied). Reads each game's event log; ids whose log is missing are
+/// skipped rather than failing the whole count.
+#[tauri::command]
+pub async fn history_deal_in_tiles(
+    ids: Vec<String>,
+    state: Acct,
+) -> CmdResult<crate::schema::DealInStats> {
+    let store = state.history_store.clone();
+    tokio::task::spawn_blocking(move || {
+        // Each game's log, with the recorded player's seat from its record
+        // (to tell their deal-ins from the opponents').
+        let logs = history_logs(&store, &ids, "deal-in stats");
+        crate::history::deal_in::summarize(logs.iter().map(|(ev, seat)| (ev.as_slice(), *seat)))
+    })
+    .await
+    .map_err(|e| format!("history deal-in join error: {e}"))
+}
+
+/// How often the recorded player's discards were called (pon / chi) and how
+/// many yakuman they paid for, across the given recorded games — the ones
+/// the History page is showing. Read from each game's event log like
+/// `history_deal_in_tiles`, so games recorded before it existed count too.
+#[tauri::command]
+pub async fn history_against_stats(
+    ids: Vec<String>,
+    state: Acct,
+) -> CmdResult<crate::schema::AgainstStats> {
+    let store = state.history_store.clone();
+    tokio::task::spawn_blocking(move || {
+        let logs = history_logs(&store, &ids, "against stats");
+        crate::history::against::summarize(logs.iter().map(|(ev, seat)| (ev.as_slice(), *seat)))
+    })
+    .await
+    .map_err(|e| format!("history against-stats join error: {e}"))
+}
+
+/// Each game's event log with the recorded player's seat from its record.
+/// Ids whose log is missing are skipped (and logged under `what`) rather
+/// than failing the whole count.
+fn history_logs(
+    store: &crate::history::HistoryStore,
+    ids: &[String],
+    what: &str,
+) -> Vec<(crate::schema::HistoryEventLog, Option<u8>)> {
+    // One look at the index, not one per game: `store.get` reads all of it
+    // every time, which made a count over every player's games (~500) take ~9 s in a debug build.
+    let seats: std::collections::HashMap<String, Option<u8>> = match store.read_all() {
+        Ok(records) => records.into_iter().map(|r| (r.id, r.our_seat)).collect(),
+        Err(e) => {
+            tracing::warn!("{what}: could not read the index: {e:#}");
+            Default::default()
+        }
+    };
+    ids.iter()
+        .filter_map(|id| {
+            let seat = seats.get(id).copied().flatten();
+            match store.get_events(id) {
+                Ok(events) => events.map(|ev| (ev, seat)),
+                Err(e) => {
+                    tracing::warn!("{what}: skipping {id}: {e:#}");
+                    None
+                }
+            }
+        })
+        .collect()
+}
+
+/// Delete a recorded game (its index entry + games/<id>.mjai.jsonl).
+/// Returns true if a record was actually removed. Emits a
+/// `HistoryEvent::Deleted` on the history bus so the frontend can drop
+/// the row from its cache without a refetch.
+#[tauri::command]
+pub async fn delete_game_history_entry(id: String, state: Acct) -> CmdResult<bool> {
+    let store = state.history_store.clone();
+    let id_for_blocking = id.clone();
+    let removed = tokio::task::spawn_blocking(move || store.delete(&id_for_blocking))
+        .await
+        .map_err(|e| format!("history delete join error: {e}"))?
+        .map_err(|e| format!("{e:#}"))?;
+    if removed {
+        let _ = state.history_bus.send(HistoryEvent::Deleted { id });
+    }
+    Ok(removed)
+}
+
+/// The release source — kept here as a const instead of plumbing through
+/// config so the user can't accidentally point the auto-updater elsewhere.
+const UPSTREAM_REPO: &str = "Koraqq/Mokora";
+
+/// Is there a newer release than the one running? Called at launch, which
+/// stays quiet once the user chose "don't remind me again" on this version
+/// (`manual: false`), and from the Settings "Check for updates" button,
+/// which always answers (`manual: true`). `Ok(None)` when up to date or
+/// muted; `Err` for network / parse failures.
+#[tauri::command]
+pub async fn check_for_update(
+    state: Acct,
+    hub: State<'_, Hub>,
+    manual: bool,
+    periodic: Option<bool>,
+) -> CmdResult<Option<crate::updater::UpdateInfo>> {
+    if !manual && crate::updater::reminders::muted() {
+        return Ok(None);
+    }
+    // The every-few-minutes check keeps out of the way: not while a game is
+    // played, and never in full auto (the prompt would wait on a player who
+    // is not there).
+    if periodic == Some(true) && (hub.any_in_game().await || hub.any_full_auto().await) {
+        return Ok(None);
+    }
+    let Ok(_guard) = state.updater_lock.try_lock() else {
+        return Err("an update check is already in progress".into());
+    };
+    let net = state.config.read().await.network.clone();
+    crate::updater::check_for_update(UPSTREAM_REPO, &net)
+        .await
+        .map_err(|e| format!("check for update: {e:#}"))
+}
+
+/// "Update": download the latest release's package, start installing it,
+/// and close Mokora (the installer starts it again). An error means nothing
+/// was installed; the prompt then offers the release page.
+#[tauri::command]
+pub async fn install_update(state: Acct, hub: State<'_, Hub>) -> CmdResult<()> {
+    let Ok(_guard) = state.updater_lock.try_lock() else {
+        return Err("an update is already in progress".into());
+    };
+    let net = state.config.read().await.network.clone();
+    crate::updater::install::download_and_install(UPSTREAM_REPO, &net)
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+    hub.quit_all().await;
+    Ok(())
+}
+
+/// "Don't remind me again": no update prompt at launch until a newer
+/// version than this one is installed.
+#[tauri::command]
+pub async fn mute_update_reminders() -> CmdResult<()> {
+    crate::updater::reminders::mute()
+        .map_err(|e| format!("could not save the choice: {e:#}"))
+}
+
+// ---------- License (see `crate::license`) ----------
+//
+// Errors are the server's short codes (`wrong_code`, `bound_elsewhere`, …, or
+// `network`), which the interface words.
+
+type License<'a> = State<'a, crate::license::LicenseManager>;
+
+/// What the license is now.
+#[tauri::command]
+pub fn license_status(license: License<'_>) -> crate::license::LicenseStatus {
+    license.status()
+}
+
+/// "Verify" `email`: signs in at once on a computer trusted for it (code
+/// sign-in here within 7 days), else mails a sign-in code.
+#[tauri::command]
+pub async fn license_start(
+    email: String,
+    license: License<'_>,
+) -> CmdResult<crate::license::Started> {
+    license
+        .start(email.trim())
+        .await
+        .map_err(|e| e.ui_code())
+}
+
+/// Sign this computer in with the mailed `code`.
+#[tauri::command]
+pub async fn license_login(
+    email: String,
+    code: String,
+    license: License<'_>,
+) -> CmdResult<crate::license::LicenseStatus> {
+    license
+        .login(email.trim(), code.trim())
+        .await
+        .map_err(|e| e.ui_code())
+}
+
+/// Redeem a key onto the signed-in account.
+#[tauri::command]
+pub async fn license_redeem(
+    key: String,
+    license: License<'_>,
+) -> CmdResult<crate::license::LicenseStatus> {
+    license.redeem(key.trim()).await.map_err(|e| e.ui_code())
+}
+
+/// Ask the server for a fresh token now.
+#[tauri::command]
+pub async fn license_renew(license: License<'_>) -> CmdResult<crate::license::LicenseStatus> {
+    Ok(license.renew().await)
+}
+
+/// Sign out, which frees this computer's binding.
+#[tauri::command]
+pub async fn license_logout(license: License<'_>) -> CmdResult<crate::license::LicenseStatus> {
+    license.logout().await.map_err(|e| e.ui_code())
+}
+
+/// Where the paid module stands (its download toast).
+#[tauri::command]
+pub fn pro_status() -> crate::pro::ProStatus {
+    crate::pro::status()
+}
+
+/// Look for the paid module again now (after a failed download).
+#[tauri::command]
+pub fn pro_retry(installer: State<'_, crate::pro::Installer>) {
+    installer.retry();
+}
+
+// ---------- Game review (see `crate::review`) ----------
+
+/// The built-in models a game can be reviewed with, with their weights'
+/// fingerprints.
+#[tauri::command]
+pub fn review_models() -> Vec<crate::schema::review::ReviewModelInfo> {
+    crate::bot::native::review_models()
+        .into_iter()
+        .filter_map(|(name, players)| crate::review::model_info(name, players).ok())
+        .collect()
+}
+
+/// Reviewing is a paid feature: starting a review and the self-check are
+/// refused without it. Reviews done before stay readable.
+fn require_pro() -> CmdResult<()> {
+    match crate::pro::refusal() {
+        None => Ok(()),
+        Some(why) => Err(why.into()),
+    }
+}
+
+fn review_store(state: &AppState) -> crate::review::store::ReviewStore {
+    crate::review::store::ReviewStore::new(state.history_store.root())
+}
+
+/// Every game of the recorded player's own, reviewed (or not) with `model`
+/// (each game's default when `None`).
+#[tauri::command]
+pub async fn review_list(
+    model: Option<String>,
+    state: Acct,
+) -> CmdResult<Vec<crate::schema::review::ReviewRow>> {
+    state.review.ensure_watch(&state.mjai_bus);
+    let history = state.history_store.clone();
+    let reviews = review_store(&state);
+    tokio::task::spawn_blocking(move || {
+        let records = history.read_all().map_err(|e| format!("{e:#}"))?;
+        Ok(records
+            .iter()
+            .filter(|r| r.our_seat.is_some())
+            .map(|r| {
+                let m = crate::review::job::model_for(model.as_deref(), r.num_players);
+                reviews.row(r, &m)
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| format!("review list join error: {e}"))?
+}
+
+/// Review the games `ids` that have no current review under `model`. Returns
+/// how many were queued; 0 means everything was reviewed already.
+#[tauri::command]
+pub async fn review_start(
+    ids: Vec<String>,
+    model: Option<String>,
+    pause_in_game: bool,
+    app: tauri::AppHandle,
+    state: Acct,
+) -> CmdResult<u32> {
+    use tauri::Emitter;
+    require_pro()?;
+    state.review.ensure_watch(&state.mjai_bus);
+    let ctx = state.autoplay_context.clone();
+    let job = crate::review::job::Job {
+        history: state.history_store.clone(),
+        reviews: review_store(&state),
+        ids,
+        model,
+        pause_in_game,
+        live: std::sync::Arc::new(move || ctx.lobby.in_game()),
+    };
+    state
+        .review
+        .start(job, move |p| {
+            let _ = app.emit("review-progress", p);
+        })
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// Stop the running review queue (the game in hand is dropped, not saved).
+#[tauri::command]
+pub fn review_cancel(state: Acct) {
+    state.review.cancel();
+}
+
+/// Where the review queue is now.
+#[tauri::command]
+pub fn review_progress(state: Acct) -> crate::schema::review::ReviewProgress {
+    state.review.progress()
+}
+
+/// The saved review of game `id` under `model`, if there is a current one.
+#[tauri::command]
+pub async fn review_get(
+    id: String,
+    model: String,
+    state: Acct,
+) -> CmdResult<Option<crate::schema::review::ReviewReport>> {
+    let history = state.history_store.clone();
+    let reviews = review_store(&state);
+    tokio::task::spawn_blocking(move || {
+        let Some(record) = history.get(&id).map_err(|e| format!("{e:#}"))? else {
+            return Ok(None);
+        };
+        let row = reviews.row(&record, &model);
+        Ok(if row.reviewed {
+            reviews.report(&id, &model)
+        } else {
+            None
+        })
+    })
+    .await
+    .map_err(|e| format!("review get join error: {e}"))?
+}
+
+const SELFCHECK_FILE: &str = "selfcheck.json";
+
+/// Run the review's self-check on the player's real games and keep the
+/// result. Refused while a review runs or a live game is on: its timing run
+/// would measure (and disturb) exactly what it is checking.
+#[tauri::command]
+pub async fn review_selfcheck(state: Acct) -> CmdResult<crate::schema::review::SelfCheckReport> {
+    require_pro()?;
+    if state.review.is_running() {
+        return Err("a review is running".into());
+    }
+    if state.review.live_recently() || state.autoplay_context.lobby.in_game() {
+        return Err("a live game is on".into());
+    }
+    let history = state.history_store.clone();
+    let dir = review_store(&state).dir().to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        let report = crate::review::selfcheck::run(
+            &history,
+            &dir.join("selfcheck-tmp"),
+            crate::review::selfcheck::Options::default(),
+        )
+        .map_err(|e| format!("{e:#}"))?;
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = serde_json::to_vec(&report).map(|b| std::fs::write(dir.join(SELFCHECK_FILE), b));
+        Ok(report)
+    })
+    .await
+    .map_err(|e| format!("review selfcheck join error: {e}"))?
+}
+
+/// The last self-check result, if one was kept.
+#[tauri::command]
+pub async fn review_selfcheck_last(
+    state: Acct,
+) -> CmdResult<Option<crate::schema::review::SelfCheckReport>> {
+    let path = review_store(&state).dir().join(SELFCHECK_FILE);
+    Ok(std::fs::read(path)
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok()))
+}
+
+fn persist_config(config: &AppConfig, path: &Path) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    // Merge into whatever is already there rather than rewriting the file:
+    // `config.toml` can hold keys this build doesn't declare — another
+    // Mokora's, or the user's own notes — and a wholesale rewrite deletes them
+    // along with every comment in the file.
+    let existing = std::fs::read_to_string(path).unwrap_or_default();
+    let body = match crate::config::merge_into(config, &existing) {
+        Ok(merged) => merged,
+        Err(e) => {
+            // Not valid TOML, so there is nothing to merge into — and nothing
+            // was being read from it either (`load_config` falls back to
+            // defaults on a parse error). Rewriting it is what every earlier
+            // build did, and it leaves the user with a file that works.
+            let kept = crate::config::back_up_unreadable(path);
+            tracing::warn!(
+                "config at {} is not valid TOML ({e}); rewriting it (old copy: {kept:?})",
+                path.display()
+            );
+            toml::to_string_pretty(config).map_err(std::io::Error::other)?
+        }
+    };
+    crate::util::write_atomic(path, body)
+}
+
+/// Pre-builds the handler list for `tauri::generate_handler!`. Keep in
+/// sync when adding commands.
+#[macro_export]
+macro_rules! ipc_handlers {
+    () => {
+        ::tauri::generate_handler![
+            $crate::ipc::commands::get_config,
+            $crate::ipc::commands::update_config,
+            $crate::ipc::commands::set_overlay_enabled,
+            $crate::ipc::commands::list_bots,
+            $crate::ipc::commands::set_active_bot,
+            $crate::ipc::commands::get_bot_settings,
+            $crate::ipc::commands::update_bot_settings,
+            $crate::ipc::commands::install_bot_from_github,
+            $crate::ipc::commands::install_bot_from_zip,
+            $crate::ipc::commands::update_bot_from_manifest,
+            $crate::ipc::commands::sync_bot_deps,
+            $crate::ipc::commands::delete_bot,
+            $crate::ipc::commands::start_capture,
+            $crate::ipc::commands::stop_capture,
+            $crate::ipc::commands::restart_capture,
+            $crate::ipc::commands::autoplay_next_game_start,
+            $crate::ipc::commands::autoplay_relogin,
+            $crate::ipc::commands::get_capture_status,
+            $crate::ipc::commands::detect_system_chrome,
+            $crate::ipc::commands::list_cft_installed,
+            $crate::ipc::commands::place_game,
+            $crate::ipc::commands::hide_game,
+            $crate::ipc::commands::game_site,
+            $crate::ipc::commands::reload_game,
+            $crate::ipc::commands::quit_app,
+            $crate::ipc::commands::validate_browser_executable,
+            $crate::ipc::commands::validate_cft_channel,
+            $crate::ipc::commands::download_chrome_for_testing,
+            $crate::ipc::commands::remove_chrome_for_testing,
+            $crate::ipc::commands::get_status,
+            $crate::ipc::commands::get_log_dir,
+            $crate::ipc::commands::get_next_game_status,
+            $crate::ipc::commands::list_accounts,
+            $crate::ipc::commands::set_account_avatar,
+            $crate::ipc::commands::set_ui_language,
+            $crate::ipc::commands::clear_account_avatar,
+            $crate::ipc::commands::add_account,
+            $crate::ipc::commands::switch_account,
+            $crate::ipc::commands::logout_account,
+            $crate::ipc::commands::delete_account,
+            $crate::ipc::commands::review_models,
+            $crate::ipc::commands::review_list,
+            $crate::ipc::commands::review_start,
+            $crate::ipc::commands::review_cancel,
+            $crate::ipc::commands::review_progress,
+            $crate::ipc::commands::review_get,
+            $crate::ipc::commands::review_selfcheck,
+            $crate::ipc::commands::review_selfcheck_last,
+            $crate::ipc::commands::set_startup_account,
+            $crate::ipc::commands::open_log_folder,
+            $crate::ipc::commands::open_external_url,
+            $crate::ipc::commands::list_log_sessions,
+            $crate::ipc::commands::read_log_session,
+            $crate::ipc::commands::subscribe_log_events,
+            $crate::ipc::commands::read_inspector,
+            $crate::ipc::commands::subscribe_inspector,
+            $crate::ipc::commands::get_analysis,
+            $crate::ipc::commands::get_game_snapshot,
+            $crate::ipc::commands::get_mahgen_view,
+            $crate::ipc::commands::compute_bot_hora_score,
+            $crate::ipc::commands::list_game_history,
+            $crate::ipc::commands::get_game_history_record,
+            $crate::ipc::commands::get_game_history_events,
+            $crate::ipc::commands::history_deal_in_tiles,
+            $crate::ipc::commands::history_against_stats,
+            $crate::ipc::commands::get_profile,
+            $crate::ipc::commands::refresh_profile_stats,
+            $crate::ipc::commands::share_layout,
+            $crate::ipc::commands::get_shared_layout,
+            $crate::ipc::commands::delete_game_history_entry,
+            $crate::ipc::commands::check_for_update,
+            $crate::ipc::commands::license_status,
+            $crate::ipc::commands::license_start,
+            $crate::ipc::commands::license_login,
+            $crate::ipc::commands::license_redeem,
+            $crate::ipc::commands::license_renew,
+            $crate::ipc::commands::license_logout,
+            $crate::ipc::commands::pro_status,
+            $crate::ipc::commands::pro_retry,
+            $crate::ipc::commands::mute_update_reminders,
+            $crate::ipc::commands::install_update,
+            $crate::ipc::commands::bot_dir_path,
+        ]
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// Only `http(s)://` may reach the OS opener — anything else could be
+    /// abused as a generic process/file launcher. (That a query-string URL
+    /// reaches the *browser* — not explorer.exe's Documents fallback — is
+    /// the manual half of this regression: opener uses ShellExecuteW.)
+    #[tokio::test]
+    async fn open_external_url_refuses_non_http_schemes() {
+        for url in [
+            "file:///C:/Windows",
+            "ftp://host/x",
+            "javascript:alert(1)",
+            "C:\\Users",
+            "httpss://not-http",
+        ] {
+            assert!(
+                open_external_url(url.to_string()).await.is_err(),
+                "{url} must be refused"
+            );
+        }
+    }
+
+    /// Switching the active bot changes what the recorder stamps on the next
+    /// game: the recorder's copy is built from the same `[bot]`.
+    #[test]
+    fn the_active_bot_is_what_the_next_game_is_stamped_with() {
+        use crate::history::recorder::ActiveBots;
+        let mut bot = crate::config::BotConfig::default();
+        apply_active_bot(&mut bot, "3p", "mora-3p").unwrap();
+        assert_eq!(
+            ActiveBots::from_config(&bot).for_players(3).as_deref(),
+            Some("mora-3p")
+        );
+        apply_active_bot(&mut bot, "3p", "yakuman-3p").unwrap();
+        let stamped = ActiveBots::from_config(&bot);
+        // No license in tests: Yakuman is a paid feature, so the game is
+        // played, and stamped, as Mora (`native::in_force`).
+        assert_eq!(stamped.for_players(3).as_deref(), Some("mora-3p"));
+        // The other mode is untouched, and a bad mode is refused.
+        assert_eq!(
+            stamped.for_players(4).as_deref(),
+            Some(bot.active_4p.as_str())
+        );
+        assert!(apply_active_bot(&mut bot, "5p", "x").is_err());
+    }
+
+    #[test]
+    fn persist_config_round_trips() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("nested").join("config.toml");
+        let mut cfg = AppConfig::default();
+        cfg.bot.active_4p = "mortal".into();
+        cfg.bot.active_3p = "mortal_3p".into();
+        cfg.proxy.addr = "127.0.0.1:9999".into();
+
+        persist_config(&cfg, &path).unwrap();
+
+        let body = std::fs::read_to_string(&path).unwrap();
+        let back: AppConfig = toml::from_str(&body).unwrap();
+        assert_eq!(back.bot.active_4p, "mortal");
+        assert_eq!(back.bot.active_3p, "mortal_3p");
+        assert_eq!(back.proxy.addr, "127.0.0.1:9999");
+    }
+
+    /// Regression: a save used to serialise `AppConfig` over the whole file,
+    /// which deleted every section, key and comment this build doesn't
+    /// declare — `config.toml` is shared with other builds and hand-edited.
+    /// One toggle in Settings was enough to lose them.
+    #[test]
+    fn persist_config_keeps_keys_this_build_does_not_know() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("config.toml");
+        let existing = "\
+# my own notes
+
+[bot]
+enabled = true
+active_4p = \"mortal\"
+some_future_knob = 42
+
+[experimental_v4]
+feature = \"on\"
+level = 3
+";
+        std::fs::write(&path, existing).unwrap();
+
+        let mut cfg: AppConfig = toml::from_str(existing).unwrap();
+        cfg.bot.active_4p = "mortal_3p_test".into();
+        persist_config(&cfg, &path).unwrap();
+
+        let body = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            body.contains("[experimental_v4]\nfeature = \"on\"\nlevel = 3\n"),
+            "unknown section was dropped:\n{body}"
+        );
+        assert!(
+            body.contains("some_future_knob = 42"),
+            "unknown key inside a known section was dropped:\n{body}"
+        );
+        assert!(
+            body.contains("# my own notes"),
+            "comment was eaten:\n{body}"
+        );
+
+        let back: AppConfig = toml::from_str(&body).unwrap();
+        assert_eq!(back.bot.active_4p, "mortal_3p_test");
+
+        // ...and saving again changes nothing.
+        persist_config(&cfg, &path).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), body);
+    }
+
+    /// A `config.toml` that isn't valid TOML has nothing to preserve — the
+    /// save must still go through instead of failing the user's edit.
+    #[test]
+    fn persist_config_rewrites_an_unparseable_file() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("config.toml");
+        std::fs::write(&path, "this is not = = toml").unwrap();
+
+        let cfg = AppConfig::default();
+        persist_config(&cfg, &path).unwrap();
+
+        let body = std::fs::read_to_string(&path).unwrap();
+        toml::from_str::<AppConfig>(&body).expect("rewritten file must parse");
+        // What was there is kept, not lost.
+        let kept = std::fs::read_to_string(tmp.path().join("config.toml.bad")).unwrap();
+        assert_eq!(kept, "this is not = = toml");
+    }
+
+    /// Regression: when a user has `bot.enabled = false` and then flips it to
+    /// `true` (e.g. via the wizard or Settings), `update_config` must spawn the
+    /// bot manager in-process. Before the fix the manager was never spawned on
+    /// that flip — the user had to relaunch the app.
+    /// `claim_bot_manager_spawn` is the gate that makes
+    /// `update_config` spawn the manager exactly once on that flip.
+    #[test]
+    fn claim_bot_manager_spawn_fires_once_on_false_to_true_flip() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let flag = AtomicBool::new(false);
+
+        // bot.enabled still false (e.g. user saved an unrelated setting
+        // before completing the wizard) — must not claim.
+        assert!(!claim_bot_manager_spawn(false, &flag));
+        assert!(!flag.load(Ordering::SeqCst));
+
+        // Wizard finishes with bot.enabled = true — claim succeeds.
+        assert!(claim_bot_manager_spawn(true, &flag));
+        assert!(flag.load(Ordering::SeqCst));
+
+        // Subsequent saves with bot.enabled still true — manager is
+        // already running, must not double-spawn.
+        assert!(!claim_bot_manager_spawn(true, &flag));
+        assert!(flag.load(Ordering::SeqCst));
+
+        // Toggling bot.enabled back to false then forward to true: the
+        // running manager survives (no off-switch yet), so we still must
+        // not claim a second time.
+        assert!(!claim_bot_manager_spawn(false, &flag));
+        assert!(!claim_bot_manager_spawn(true, &flag));
+        assert!(flag.load(Ordering::SeqCst));
+    }
+
+    /// Regression: when startup spawns the manager (because `bot.enabled`
+    /// was already true on first config load), the flag is set true
+    /// up front. A subsequent `update_config` must observe that and skip
+    /// spawning a duplicate manager.
+    #[test]
+    fn claim_bot_manager_spawn_respects_preset_flag() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let flag = AtomicBool::new(true);
+        assert!(!claim_bot_manager_spawn(true, &flag));
+        assert!(flag.load(Ordering::SeqCst));
+    }
+}

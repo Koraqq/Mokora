@@ -1,0 +1,222 @@
+/* BoardTile — 2D top-down mahjong table.
+ *
+ * Layout strategy (see claude_plan / issue): the hero sits at the bottom; the
+ * other seats are drawn into a full-square layer that is rotated 90/180/270°
+ * about the board center. CSS `transform: rotate()` is paint-only, so each
+ * seat's mahgen container reports its pre-rotation (axis-aligned) clientWidth —
+ * which is what mahgen's sizing reads — so all four seats size identically.
+ *
+ * Each seat's hand / river / melds are absolutely positioned within the layer:
+ * the hand hugs the outer edge, the river is TOP-anchored just inside it so new
+ * rows fill DOWNWARD (the first row never shifts), and melds sit beside the hand.
+ *
+ * Scores live in a central panel (one per seat, placed on that seat's side, à la
+ * Majsoul) so they never collide. Dora sits in a top-left panel. The square
+ * pixel size is set inline by BoardTile (ResizeObserver) so every percentage
+ * below resolves against a known square. Positions/sizes are tunable. */
+
+.board-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.board-empty {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.board-square {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  /* fixed solid dark grey, matching the Mokora default (neutral) dark theme */
+  background: oklch(0.17 0 0);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ---- dora panel (top-left) ---- */
+.board-dora {
+  position: absolute;
+  top: 2.5%;
+  left: 2.5%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  /* light mode: white panel; dark mode restored under `.dark` below */
+  background: oklch(1 0 0 / 0.9);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* scale with the board so the dora doesn't look tiny on a large tile */
+  transform: scale(var(--board-scale, 1));
+  transform-origin: top left;
+}
+.dark .board-dora {
+  background: rgba(0, 0, 0, 0.5);
+}
+.board-dora-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  /* light mode: black text on the white panel; dark mode muted under `.dark` */
+  color: var(--foreground);
+}
+.dark .board-dora-label {
+  color: var(--muted-foreground);
+}
+
+/* ---- rotated per-seat tile layer ---- */
+.board-seat {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+  pointer-events: none;
+}
+.board-seat-hand {
+  position: absolute;
+  bottom: 1.5%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56%;
+  display: flex;
+  justify-content: center;
+}
+.board-seat-river {
+  /* TOP-anchored so the river grows downward; the first row stays put. */
+  position: absolute;
+  top: 67%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 26%;
+  display: flex;
+  justify-content: center;
+}
+.board-seat-melds {
+  position: absolute;
+  bottom: 1.5%;
+  right: 0.5%;
+  /* definite width (fraction of the square board) so mahgen's container-width
+     sizing scales the melds with the board, like the hand and river. */
+  width: 44%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+/* ---- central panel: round info + each seat's score on its side ---- */
+.board-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 31%;
+  aspect-ratio: 1;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1fr;
+  grid-template-rows: 1fr 1.25fr 1fr;
+  /* var(--foreground) is black in light mode, white in dark mode */
+  color: var(--foreground);
+  /* light mode: white panel; dark mode restored under `.dark` below */
+  background: oklch(1 0 0 / 0.9);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  overflow: hidden;
+  /* panel text scales with the board (see --board-scale on .board-square) */
+  font-size: calc(11px * var(--board-scale, 1));
+}
+.dark .board-center {
+  /* lighter translucent grey over the dark board, with a border */
+  background: oklch(0.30 0 0 / 0.55);
+}
+.board-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+/* Each seat's info rotates to face that player (Majsoul-style). */
+.board-score--top    { grid-column: 2; grid-row: 1; transform: rotate(180deg); }
+.board-score--right  { grid-column: 3; grid-row: 2; transform: rotate(270deg); }
+.board-score--bottom { grid-column: 2; grid-row: 3; }
+.board-score--left   { grid-column: 1; grid-row: 2; transform: rotate(90deg); }
+.board-score-wind {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.85em;
+  font-weight: 700;
+  opacity: 0.85;
+}
+.board-score-riichi {
+  color: #fbbf24;
+  font-size: 0.7em;
+}
+.board-score-pts {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.board-center-mid {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-align: center;
+}
+.board-center-round {
+  font-size: 1.15em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.board-center-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+.board-stick {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.board-stick img {
+  height: 1.2em;
+}
+
+/* ---- current-turn indicator: slow-blinking yellow bar on the active side ---- */
+.board-turn-bar {
+  position: absolute;
+  background: #fbbf24;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.7);
+  animation: board-turn-pulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+.board-turn-bar--bottom { left: 20%; right: 20%; bottom: 3.5%; height: 3px; }
+.board-turn-bar--top    { left: 20%; right: 20%; top: 3.5%; height: 3px; }
+.board-turn-bar--left   { top: 20%; bottom: 20%; left: 3.5%; width: 3px; }
+.board-turn-bar--right  { top: 20%; bottom: 20%; right: 3.5%; width: 3px; }
+
+@keyframes board-turn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}

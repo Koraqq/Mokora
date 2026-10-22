@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mokora</title>
+    <script>
+      // Pre-hydration theme apply — must run before React/CSS paint to prevent
+      // a flash of the opposite theme. Reads the same localStorage key as
+      // `src/stores/themeStore.ts` (Zustand persist envelope: { state: {...} }).
+      (function () {
+        try {
+          var raw = localStorage.getItem('mokora.theme');
+          var mode = 'system';
+          var palette = 'default';
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            var s = parsed && parsed.state ? parsed.state : parsed;
+            if (s && s.mode) mode = s.mode;
+            if (s && s.palette) palette = s.palette;
+          }
+          var dark =
+            mode === 'dark' ||
+            (mode === 'system' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+          if (palette && palette !== 'default') {
+            document.documentElement.setAttribute('data-theme', palette);
+          }
+          if (palette === 'custom') {
+            var css = localStorage.getItem('mokora.theme.css');
+            if (css) {
+              var styleEl = document.createElement('style');
+              styleEl.id = 'mokora-custom-theme';
+              styleEl.textContent = css;
+              document.head.appendChild(styleEl);
+            }
+          }
+        } catch (_) {
+          // Storage blocked or malformed — fall back to system dark.
+          if (
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches
+          ) {
+            document.documentElement.classList.add('dark');
+          }
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

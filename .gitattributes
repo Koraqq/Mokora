@@ -1,0 +1,13 @@
+# Text is stored with LF in the repository and converted to the platform default on checkout.
+* text=auto
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Model weights are large binaries: stored with Git LFS.
+*.safetensors filter=lfs diff=lfs merge=lfs -text
+
+# Binary assets
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary

@@ -1,0 +1,10 @@
+[package]
+name = "pro_api"
+version = "0.1.0"
+edition = "2021"
+description = "What Mokora and its paid module (MokoraPro, downloaded once a key is redeemed) say to each other: the call, its data, the version both must share."
+license = "Apache-2.0"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

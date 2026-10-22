@@ -1,0 +1,103 @@
+venv
+__pycache__
+target
+node_modules
+.assets
+
+# Release-signing secret key (public half is tracked as minisign.pub)
+secrets/
+
+# Claude
+.claude
+CLAUDE.md
+claude*.md
+*mcp.json
+AGENTS.md
+agent*.md
+.agents
+.codex
+
+# Reference
+reference
+reference*.md
+
+# Runtime data
+ca/
+logs/
+
+# Per-bot uv venvs and stamp files (managed by Mokora)
+mjai_bot/*/.mokora/
+mjai_bot/*/uv.lock
+mjai_bot/*/.venv/
+
+# Per-bot user-edited settings (manifest.toml ships with the bot; settings.toml does not)
+mjai_bot/*/settings.toml
+
+# Tauri
+gen/
+
+# Packaging output (scripts/package-zip.sh)
+dist/
+
+# Bundled python + uv binaries fetched by scripts/fetch-runtime.sh.
+runtime/*
+!runtime/.gitkeep
+
+# util
+mjai_bot/mortal*
+
+# Locally-built bot release artifacts
+mortal.zip
+*.bot.zip
+tests/mortal_zip_layout.rs
+
+# Test
+test
+
+# Local release helper
+scripts/tag_release.sh
+
+# Training-data shards written by native_bot's extractor (see native_bot/train/README.md).
+# Tens of GB of intermediate binaries; the trained weights are what gets committed.
+native_bot/out/
+
+# Game logs the extractor reads, and the raw Tenhou logs they are converted from
+# (see native_bot/train/README.md). Downloaded data, never committed.
+native_bot/dataset/
+
+# Mimosa security-scan history (see ~/.mimosa fallback when absent)
+.mimosa
+
+# ZCode session artifacts
+.zcode/
+
+# --- Mokora local data: never commit ---
+# Per-account data (logins live in the browser profile), shared history,
+# the local config and CA.
+/accounts/
+/history/
+/configs/
+/config.toml
+/chrome-for-testing/
+*.log
+# Training data and outputs (hundreds of GB), per-machine venvs
+native_bot/dataset/
+native_bot/out/
+native_bot/target/
+native_bot/train/venv/
+*.ckpt
+# Scratch
+/scratch/
+/tmp/
+
+# --- Local-only reference material (never pushed) ---
+/_parked/original-assets/
+/_parked/upstream-sync/
+/_parked/api-key/
+/target/
+
+# Character icons fetched by scripts/fetch_characters.py (game artwork: local use only)
+/assets/characters/
+
+# Windows folder settings (created by Explorer, not part of the project)
+desktop.ini

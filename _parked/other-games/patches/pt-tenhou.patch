@@ -1,0 +1,432 @@
+diff --git b/frontend/src/components/history/PtRuleSelector.tsx a/frontend/src/components/history/PtRuleSelector.tsx
+index 3b2bd25..058c867 100644
+--- b/frontend/src/components/history/PtRuleSelector.tsx
++++ a/frontend/src/components/history/PtRuleSelector.tsx
+@@ -1,4 +1,4 @@
+-// PT-rule selector: tabs for Majsoul / Custom, with rule-
++// PT-rule selector: tabs for Majsoul / Tenhou / Custom, with rule-
+ // specific sub-controls. Stateless wrt the rule itself — reads/writes
+ // via `useHistoryStore`.
+ //
+@@ -38,6 +38,9 @@ import {
+   MAJSOUL_LOBBY_LABEL,
+   type MajsoulDan,
+   type MajsoulLobby,
++  TENHOU_DAN_4P,
++  TENHOU_DAN_LABEL,
++  type TenhouDan,
+ } from '@/lib/ptTables'
+ import { useHistoryStore } from '@/stores/historyStore'
+ 
+@@ -56,6 +59,8 @@ export function PtRuleSelector({
+   const onTabChange = (value: string) => {
+     if (value === 'majsoul') {
+       setRule({ kind: 'majsoul', lobby: 'jade', dan: 'jakketsu_3' })
++    } else if (value === 'tenhou') {
++      setRule({ kind: 'tenhou', dan: 'dan_4' })
+     } else if (value === 'custom') {
+       setRule(DEFAULT_CUSTOM_RULE)
+     }
+@@ -76,6 +81,7 @@ export function PtRuleSelector({
+           <div className="flex items-center gap-4 flex-wrap">
+             <TabsList>
+               <TabsTrigger value="majsoul">{t('history.rule.majsoul')}</TabsTrigger>
++              <TabsTrigger value="tenhou">{t('history.rule.tenhou')}</TabsTrigger>
+               <TabsTrigger value="custom">{t('history.rule.custom')}</TabsTrigger>
+             </TabsList>
+             {rule.kind === 'majsoul' && (
+@@ -142,6 +148,30 @@ export function PtRuleSelector({
+             )}
+           </TabsContent>
+ 
++          <TabsContent value="tenhou" className="pt-3">
++            {rule.kind === 'tenhou' && (
++              <Field label={t('history.rule.dan')}>
++                <Select
++                  value={rule.dan}
++                  onValueChange={(v) =>
++                    setRule({ kind: 'tenhou', dan: v as TenhouDan })
++                  }
++                >
++                  <SelectTrigger className="w-full">
++                    <SelectValue />
++                  </SelectTrigger>
++                  <SelectContent>
++                    {TENHOU_DAN_4P.map((id) => (
++                      <SelectItem key={id} value={id}>
++                        {TENHOU_DAN_LABEL[id]}
++                      </SelectItem>
++                    ))}
++                  </SelectContent>
++                </Select>
++              </Field>
++            )}
++          </TabsContent>
++
+           <TabsContent value="custom" className="pt-3">
+             {rule.kind === 'custom' && <CustomEditor />}
+           </TabsContent>
+diff --git b/frontend/src/lib/ptCalc.ts a/frontend/src/lib/ptCalc.ts
+index 085d37a..bffbfd1 100644
+--- b/frontend/src/lib/ptCalc.ts
++++ a/frontend/src/lib/ptCalc.ts
+@@ -1,5 +1,5 @@
+-// Pure PT (cumulative-points) calculation. Majsoul's rule plus a custom
+-// escape hatch (Tenhou's is parked: `_parked/other-games`):
++// Pure PT (cumulative-points) calculation. Three rule families plus a
++// custom escape hatch:
+ //
+ // - Majsoul: `(score - start) / 1000 + uma + dan_bonus(rank, lobby, dan, mode)`
+ //   * uma 4p = [+15, +5, -5, -15], 3p = [+15, 0, -15]
+@@ -7,6 +7,8 @@
+ //     dan-penalty table (already negative)
+ //   * `start` = 25_000 (4p) / 35_000 (3p)
+ //
++// - Tenhou: PT is read directly from a [dan][mode][rank-1] cell.
++//
+ // - Custom: user supplies [uma per rank], [dan-bonus per rank]. Formula
+ //   matches Majsoul minus the lobby/dan tables: PT =
+ //   (score - start) / 1000 + uma[rank-1] + danBonus[rank-1].
+@@ -30,6 +32,9 @@ import {
+   MAJSOUL_LOBBY_4P,
+   type MajsoulDan,
+   type MajsoulLobby,
++  TENHOU_3P,
++  TENHOU_4P,
++  type TenhouDan,
+ } from '@/lib/ptTables'
+ 
+ export type PtRule =
+@@ -40,6 +45,7 @@ export type PtRule =
+       /** Use the room / rank each game was played at (see top of file). */
+       auto?: boolean
+     }
++  | { kind: 'tenhou'; dan: TenhouDan }
+   | {
+       kind: 'custom'
+       /** [+1st, +2nd, +3rd, +4th] for 4p, [+1st, +2nd, +3rd] for 3p. */
+@@ -79,6 +85,8 @@ export function computePt(record: GameRecord, rule: PtRule): number {
+   switch (rule.kind) {
+     case 'majsoul':
+       return majsoulPt(record, rule, rank, modeIdx, np)
++    case 'tenhou':
++      return tenhouPt(record, rule, rank, modeIdx, np)
+     case 'custom':
+       return customPt(record, rule, rank, np)
+   }
+@@ -172,6 +180,18 @@ export function withCurrentRank(rule: PtRule, records: GameRecord[]): PtRule {
+   return { ...rule, lobby: lobby ?? rule.lobby, dan: dan ?? rule.dan }
+ }
+ 
++function tenhouPt(
++  _record: GameRecord,
++  rule: Extract<PtRule, { kind: 'tenhou' }>,
++  rank: number,
++  modeIdx: 0 | 1,
++  np: number,
++): number {
++  const table = np === 3 ? TENHOU_3P[rule.dan] : TENHOU_4P[rule.dan]
++  const cells = table[modeIdx]
++  return cells[rank - 1] ?? 0
++}
++
+ function customPt(
+   record: GameRecord,
+   rule: Extract<PtRule, { kind: 'custom' }>,
+diff --git b/frontend/src/lib/ptTables.ts a/frontend/src/lib/ptTables.ts
+index 836a941..f0528bf 100644
+--- b/frontend/src/lib/ptTables.ts
++++ a/frontend/src/lib/ptTables.ts
+@@ -1,13 +1,16 @@
+-// Static lookup tables for the Majsoul PT formula, transcribed from the
+-// user-provided spec. (Tenhou's tables are parked with the rest of Tenhou:
+-// `_parked/other-games/patches/pt-tenhou.patch`.)
++// Static lookup tables for the Majsoul / Tenhou PT formulas, transcribed
++// from the user-provided spec.
+ //
+ // Layout choices:
+ // - Majsoul rank/lobby tables are split by player count. The 3p schedule
+ //   has different bonus rows than the 4p one (see the user's tables).
+-// - "+0" entries are stored as `0`. Cells the spec marks "-" are stored as
+-//   `0` too — they have no semantic effect and the calculator simply
+-//   returns 0 for those slots.
++// - Tenhou tables embed every cell directly — the displayed PT is the
++//   table value, no further uma/dan-bonus split. We carry both 4p and 3p
++//   versions as parallel arrays.
++// - "+0" entries are stored as `0`. Cells the spec marks "-" (e.g.
++//   天鳳位 has no progression target, "新人" / 級 ranks below 1級 don't
++//   penalise) are stored as `0` too — they have no semantic effect and
++//   the calculator simply returns 0 for those slots.
+ 
+ // ---------- Majsoul: rank IDs ----------
+ 
+@@ -150,3 +153,242 @@ export const MAJSOUL_LOBBY_LABEL: Record<MajsoulLobby, string> = {
+   jade: '玉之間',
+   throne: '王座之間',
+ }
++
++// ---------- Tenhou: rank IDs ----------
++
++export const TENHOU_DAN_4P = [
++  'newcomer',
++  'kyu_9',
++  'kyu_8',
++  'kyu_7',
++  'kyu_6',
++  'kyu_5',
++  'kyu_4',
++  'kyu_3',
++  'kyu_2',
++  'kyu_1',
++  'dan_1',
++  'dan_2',
++  'dan_3',
++  'dan_4',
++  'dan_5',
++  'dan_6',
++  'dan_7',
++  'dan_8',
++  'dan_9',
++  'dan_10',
++  'tenhoui',
++] as const
++export type TenhouDan = (typeof TENHOU_DAN_4P)[number]
++
++export const TENHOU_DAN_LABEL: Record<TenhouDan, string> = {
++  newcomer: '新人',
++  kyu_9: '9級',
++  kyu_8: '8級',
++  kyu_7: '7級',
++  kyu_6: '6級',
++  kyu_5: '5級',
++  kyu_4: '4級',
++  kyu_3: '3級',
++  kyu_2: '2級',
++  kyu_1: '1級',
++  dan_1: '初段',
++  dan_2: '二段',
++  dan_3: '三段',
++  dan_4: '四段',
++  dan_5: '五段',
++  dan_6: '六段',
++  dan_7: '七段',
++  dan_8: '八段',
++  dan_9: '九段',
++  dan_10: '十段',
++  tenhoui: '天鳳位',
++}
++
++// ---------- Tenhou 4p: full PT-by-rank table ----------
++//
++// `[dan][mode][rank-1]` → integer PT. mode 0 = tonpuu, mode 1 = hanchan.
++// Rank vectors have length 4. Cells where the spec gives "+0" are 0.
++
++type TenhouTable = Record<TenhouDan, [number[], number[]]>
++
++export const TENHOU_4P: TenhouTable = {
++  newcomer: [
++    [20, 10, 0, 0],
++    [30, 15, 0, 0],
++  ],
++  kyu_9: [
++    [20, 10, 0, 0],
++    [30, 15, 0, 0],
++  ],
++  kyu_8: [
++    [20, 10, 0, 0],
++    [30, 15, 0, 0],
++  ],
++  kyu_7: [
++    [20, 10, 0, 0],
++    [30, 15, 0, 0],
++  ],
++  kyu_6: [
++    [20, 10, 0, 0],
++    [30, 15, 0, 0],
++  ],
++  kyu_5: [
++    [20, 10, 0, 0],
++    [30, 15, 0, 0],
++  ],
++  kyu_4: [
++    [20, 10, 0, 0],
++    [30, 15, 0, 0],
++  ],
++  kyu_3: [
++    [20, 10, 0, 0],
++    [30, 15, 0, 0],
++  ],
++  kyu_2: [
++    [20, 10, 0, -10],
++    [30, 15, 0, -15],
++  ],
++  kyu_1: [
++    [20, 10, 0, -20],
++    [30, 15, 0, -30],
++  ],
++  dan_1: [
++    [40, 10, 0, -30],
++    [60, 15, 0, -45],
++  ],
++  dan_2: [
++    [40, 10, 0, -40],
++    [60, 15, 0, -60],
++  ],
++  dan_3: [
++    [40, 10, 0, -50],
++    [60, 15, 0, -75],
++  ],
++  dan_4: [
++    [50, 20, 0, -60],
++    [75, 30, 0, -90],
++  ],
++  dan_5: [
++    [50, 20, 0, -70],
++    [75, 30, 0, -105],
++  ],
++  dan_6: [
++    [50, 20, 0, -80],
++    [75, 30, 0, -120],
++  ],
++  dan_7: [
++    [50, 20, 0, -90],
++    [75, 30, 0, -135],
++  ],
++  dan_8: [
++    [60, 30, 0, -100],
++    [90, 45, 0, -150],
++  ],
++  dan_9: [
++    [60, 30, 0, -110],
++    [90, 45, 0, -165],
++  ],
++  dan_10: [
++    [60, 30, 0, -120],
++    [90, 45, 0, -180],
++  ],
++  tenhoui: [
++    [60, 30, 0, -120],
++    [90, 45, 0, -180],
++  ],
++}
++
++// ---------- Tenhou 3p: full PT-by-rank table ----------
++//
++// `[dan][mode][rank-1]` → integer PT. Rank vectors have length 3.
++
++export const TENHOU_DAN_3P = TENHOU_DAN_4P
++export type TenhouDan3p = TenhouDan
++
++export const TENHOU_3P: Record<TenhouDan, [number[], number[]]> = {
++  newcomer: [
++    [30, 0, 0],
++    [45, 0, 0],
++  ],
++  kyu_9: [
++    [30, 0, 0],
++    [45, 0, 0],
++  ],
++  kyu_8: [
++    [30, 0, 0],
++    [45, 0, 0],
++  ],
++  kyu_7: [
++    [30, 0, 0],
++    [45, 0, 0],
++  ],
++  kyu_6: [
++    [30, 0, 0],
++    [45, 0, 0],
++  ],
++  kyu_5: [
++    [30, 0, 0],
++    [45, 0, 0],
++  ],
++  kyu_4: [
++    [30, 0, 0],
++    [45, 0, 0],
++  ],
++  kyu_3: [
++    [30, 0, 0],
++    [45, 0, 0],
++  ],
++  kyu_2: [
++    [30, 0, -10],
++    [45, 0, -15],
++  ],
++  kyu_1: [
++    [30, 0, -20],
++    [45, 0, -30],
++  ],
++  dan_1: [
++    [50, 0, -30],
++    [75, 0, -45],
++  ],
++  dan_2: [
++    [50, 0, -40],
++    [75, 0, -60],
++  ],
++  dan_3: [
++    [50, 0, -50],
++    [75, 0, -75],
++  ],
++  dan_4: [
++    [70, 0, -60],
++    [105, 0, -90],
++  ],
++  dan_5: [
++    [70, 0, -70],
++    [105, 0, -105],
++  ],
++  dan_6: [
++    [70, 0, -80],
++    [105, 0, -120],
++  ],
++  dan_7: [
++    [90, 0, -90],
++    [135, 0, -135],
++  ],
++  dan_8: [
++    [90, 0, -100],
++    [135, 0, -150],
++  ],
++  dan_9: [
++    [90, 0, -110],
++    [135, 0, -165],
++  ],
++  dan_10: [
++    [90, 0, -120],
++    [135, 0, -180],
++  ],
++  tenhoui: [
++    [90, 0, -120],
++    [135, 0, -180],
++  ],
++}
+diff --git b/frontend/src/routes/History.tsx a/frontend/src/routes/History.tsx
+index ae8bb08..f026205 100644
+--- b/frontend/src/routes/History.tsx
++++ a/frontend/src/routes/History.tsx
+@@ -317,6 +317,8 @@ function FilterCard({
+               <SelectContent>
+                 <SelectItem value={ANY}>{t('history.filter.any')}</SelectItem>
+                 <SelectItem value="majsoul">{t('platform.majsoul')}</SelectItem>
++                <SelectItem value="tenhou">{t('platform.tenhou')}</SelectItem>
++                <SelectItem value="riichi_city">{t('platform.riichi_city')}</SelectItem>
+                 <SelectItem value="mjai">{t('platform.mjai')}</SelectItem>
+               </SelectContent>
+             </Select>
+diff --git b/frontend/src/stores/historyStore.ts a/frontend/src/stores/historyStore.ts
+index cca2f30..c9df54d 100644
+--- b/frontend/src/stores/historyStore.ts
++++ a/frontend/src/stores/historyStore.ts
+@@ -35,8 +35,7 @@ type PtRules = Record<3 | 4, PtRule>
+ 
+ function validRule(parsed: unknown): PtRule | null {
+   const kind = (parsed as PtRule | null)?.kind
+-  // A rule saved while Tenhou's was offered falls back to the default.
+-  return kind === 'majsoul' || kind === 'custom'
++  return kind === 'majsoul' || kind === 'tenhou' || kind === 'custom'
+     ? (parsed as PtRule)
+     : null
+ }

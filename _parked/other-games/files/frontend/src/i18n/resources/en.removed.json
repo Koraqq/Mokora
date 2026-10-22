@@ -1,0 +1,11 @@
+{
+  "settings.autoplay.rc_warning_title": "Riichi City autoplay risk warning",
+  "settings.autoplay.rc_warning_desc": "Autoplay on Riichi City is implemented by injecting protocol frames through the MITM proxy. This approach still has open safety concerns and may get your account banned. Use it at your own risk.",
+  "settings.autoplay.rc_warning_ack": "I understand the risk",
+  "platform.tenhou": "Tenhou",
+  "platform.tenhou_desc": "tenhou.net — yonma + sanma",
+  "platform.riichi_city": "Riichi City",
+  "platform.riichi_city_desc": "Native client — MITM only · yonma + sanma",
+  "history.rule.tenhou": "Tenhou",
+  "settings.autoplay.enable_help": "When enabled, Mokora performs the bot's chosen action for you. Needs the built-in game window or the Chromium capture mode. On Mahjong Soul the action is clicked on the board; on Tenhou it is sent directly over the game connection; on Riichi City it is injected as the client's own protocol frames through the MITM proxy."
+}
