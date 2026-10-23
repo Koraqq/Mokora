@@ -1147,7 +1147,15 @@
     "tabs": {
       "in_game": "in a game",
       "lobby": "in the lobby",
-      "connecting": "signing in"
+      "connecting": "signing in",
+      "logout": "Sign out account?",
+      "logout_title": "Sign out {{name}}",
+      "logout_body": "Sign out the {{name}} account?",
+      "logout_in_game": "{{name}} is in a game. Sign it out anyway? This will drop the game.",
+      "logout_confirm": "Sign out",
+      "logout_failed": "Could not sign out the account",
+      "last_open": "The last open account must stay open",
+      "order_failed": "Could not save the account order"
     },
     "quit": {
       "title": "Quit Mokora",
@@ -1206,7 +1214,8 @@
       "network": "The license server cannot be reached. Check the network.",
       "unknown": "Something went wrong. Try again later.",
       "device_expired": "Verify your email again.",
-      "pro_required": "This needs a paid membership."
+      "pro_required": "This needs a paid membership.",
+      "too_many_redeems": "Too many tries. Please wait 2 minutes and try again."
     },
     "signed_out": "Not signed in",
     "verify": "Verify",
@@ -1218,7 +1227,15 @@
     "pro_title": "Paid feature",
     "pro_review": "Starting a new review needs a paid membership; reviews done before can still be opened. Redeem a key from the key icon (Membership) at the top right to use it.",
     "pro_accounts": "Free members can have up to 2 accounts; paid members have no limit. Redeem a key from the key icon (Membership) at the top right.",
-    "status_paid_hours": "Status: paid member (ends {{time}}, {{hours}} h {{minutes}} min left)"
+    "status_paid_hours": "Status: paid member (ends {{time}}, {{hours}} h {{minutes}} min left)",
+    "free_key": "Free",
+    "lost": {
+      "revoked": "Key no longer valid",
+      "revoked_hint": "{{hint}} was stopped; your paid time has been recalculated.",
+      "expired": "Paid membership ended",
+      "expired_hint": "You are a free member now. Redeem a new key under Membership.",
+      "stopped": "Account stopped"
+    }
   },
   "pro": {
     "downloading": "Downloading paid features {{percent}}%",

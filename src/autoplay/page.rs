@@ -169,26 +169,29 @@ impl GamePage {
         }
     }
 
-    /// A PNG of `clip`, or of the whole visible page, one image pixel per CSS
-    /// pixel.
+    /// A PNG of `clip` (one image pixel per CSS pixel), or of the whole
+    /// visible page.
     pub async fn screenshot(&self, clip: Option<Clip>) -> Result<Vec<u8>> {
         match self {
             GamePage::Cdp(p) => {
-                use chromiumoxide::cdp::browser_protocol::page::{
-                    CaptureScreenshotFormat, Viewport,
-                };
+                use chromiumoxide::cdp::browser_protocol::page::CaptureScreenshotFormat;
                 use chromiumoxide::page::ScreenshotParams;
-                let mut params = ScreenshotParams::builder().format(CaptureScreenshotFormat::Png);
-                if let Some(c) = clip {
-                    params = params.clip(Viewport {
-                        x: c.x,
-                        y: c.y,
-                        width: c.width,
-                        height: c.height,
-                        scale: 1.0,
-                    });
-                }
-                p.screenshot(params.build()).await.context("CDP screenshot")
+                // Always the whole page, cut here: asked for a part, Chromium
+                // repaints the page for it and the player sees the game flash
+                // white on every capture (measured 2026-10-23: every clipped
+                // capture flashed, no whole-page one did).
+                let params = ScreenshotParams::builder()
+                    .format(CaptureScreenshotFormat::Png)
+                    .build();
+                let full = p.screenshot(params).await.context("CDP screenshot")?;
+                let Some(c) = clip else { return Ok(full) };
+                let css_width = p
+                    .evaluate("window.innerWidth")
+                    .await
+                    .context("CDP evaluate innerWidth")?
+                    .into_value::<f64>()
+                    .context("innerWidth")?;
+                crop_png(&full, css_width, c)
             }
             #[cfg(target_os = "linux")]
             GamePage::WebKit(w) => w.screenshot(clip).await,
@@ -220,5 +223,128 @@ impl GamePage {
             #[cfg(target_os = "linux")]
             GamePage::WebKit(w) => w.start_reload().await,
         }
+    }
+}
+
+/// The part `clip` (CSS pixels) of the PNG `png` of a page `css_width` CSS
+/// pixels wide, as a PNG of one pixel per CSS pixel (nearest pixel).
+fn crop_png(png: &[u8], css_width: f64, clip: Clip) -> Result<Vec<u8>> {
+    let mut reader = png::Decoder::new(std::io::Cursor::new(png))
+        .read_info()
+        .context("decode screenshot")?;
+    let mut data = vec![0; reader.output_buffer_size()];
+    let info = reader
+        .next_frame(&mut data)
+        .context("decode screenshot frame")?;
+    let channels = match info.color_type {
+        png::ColorType::Rgb => 3,
+        png::ColorType::Rgba => 4,
+        other => return Err(anyhow!("unexpected screenshot colour type {other:?}")),
+    };
+    if info.bit_depth != png::BitDepth::Eight {
+        return Err(anyhow!(
+            "unexpected screenshot bit depth {:?}",
+            info.bit_depth
+        ));
+    }
+    let (src_w, src_h) = (info.width as usize, info.height as usize);
+    if src_w == 0 || src_h == 0 || css_width.is_nan() || css_width <= 0.0 {
+        return Err(anyhow!("empty screenshot"));
+    }
+    // Image pixels per CSS pixel (the display's scaling).
+    let scale = src_w as f64 / css_width;
+    let (w, h) = (
+        clip.width.round().max(1.0) as usize,
+        clip.height.round().max(1.0) as usize,
+    );
+    let mut out = Vec::with_capacity(w * h * channels);
+    for row in 0..h {
+        let sy = (((clip.y + row as f64 + 0.5) * scale) as usize).min(src_h - 1);
+        for col in 0..w {
+            let sx = (((clip.x + col as f64 + 0.5) * scale) as usize).min(src_w - 1);
+            let at = (sy * src_w + sx) * channels;
+            out.extend_from_slice(&data[at..at + channels]);
+        }
+    }
+    let mut encoded = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut encoded, w as u32, h as u32);
+        enc.set_color(info.color_type);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut writer = enc.write_header().context("encode crop")?;
+        writer.write_image_data(&out).context("encode crop")?;
+    }
+    Ok(encoded)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An RGB PNG `w`x`h` whose pixel (x, y) is `(x, y, 7)`.
+    fn gradient(w: u32, h: u32) -> Vec<u8> {
+        let mut px = Vec::new();
+        for y in 0..h {
+            for x in 0..w {
+                px.extend_from_slice(&[x as u8, y as u8, 7]);
+            }
+        }
+        let mut out = Vec::new();
+        let mut enc = png::Encoder::new(&mut out, w, h);
+        enc.set_color(png::ColorType::Rgb);
+        enc.set_depth(png::BitDepth::Eight);
+        enc.write_header().unwrap().write_image_data(&px).unwrap();
+        out
+    }
+
+    fn pixels(png_bytes: &[u8]) -> (u32, u32, Vec<u8>) {
+        let mut r = png::Decoder::new(std::io::Cursor::new(png_bytes))
+            .read_info()
+            .unwrap();
+        let mut buf = vec![0; r.output_buffer_size()];
+        let info = r.next_frame(&mut buf).unwrap();
+        (info.width, info.height, buf)
+    }
+
+    #[test]
+    fn a_crop_at_one_image_pixel_per_css_pixel() {
+        let clip = Clip {
+            x: 10.0,
+            y: 20.0,
+            width: 3.0,
+            height: 2.0,
+        };
+        let (w, h, px) = pixels(&crop_png(&gradient(100, 50), 100.0, clip).unwrap());
+        assert_eq!((w, h), (3, 2));
+        assert_eq!(&px[..3], &[10, 20, 7]);
+        assert_eq!(&px[px.len() - 3..], &[12, 21, 7]);
+    }
+
+    #[test]
+    fn a_scaled_display_is_cut_in_css_pixels() {
+        // A 1.5x display: the page is 100 CSS pixels wide, the picture 150.
+        let clip = Clip {
+            x: 10.0,
+            y: 20.0,
+            width: 4.0,
+            height: 2.0,
+        };
+        let (w, h, px) = pixels(&crop_png(&gradient(150, 75), 100.0, clip).unwrap());
+        assert_eq!((w, h), (4, 2));
+        // CSS (10.5, 20.5) is image (15.75, 30.75).
+        assert_eq!(&px[..3], &[15, 30, 7]);
+    }
+
+    #[test]
+    fn a_clip_past_the_edge_stays_inside_the_picture() {
+        let clip = Clip {
+            x: 98.0,
+            y: 48.0,
+            width: 5.0,
+            height: 5.0,
+        };
+        let (w, h, px) = pixels(&crop_png(&gradient(100, 50), 100.0, clip).unwrap());
+        assert_eq!((w, h), (5, 5));
+        assert_eq!(&px[px.len() - 3..], &[99, 49, 7]);
     }
 }

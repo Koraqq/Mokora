@@ -30,6 +30,7 @@ use crate::license::client::{KeyView, Report, ServerError, Session};
 use crate::license::store::Stored;
 use serde::Serialize;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
@@ -56,6 +57,38 @@ static CURRENT: std::sync::OnceLock<LicenseManager> = std::sync::OnceLock::new()
 /// license is installed, so nothing locked runs during start-up.
 pub fn allows(feature: &str) -> bool {
     CURRENT.get().is_some_and(|l| l.has(feature))
+}
+
+/// The shortest time between two looks at the server that [`check_soon`]
+/// asks for; any renewal counts as one.
+const CHECK_GAP_SECONDS: i64 = 90;
+
+/// Ask the server about the license now, unless it was asked in the last
+/// [`CHECK_GAP_SECONDS`]: called when the game shows a room's player counts,
+/// the step before every match, so a key stopped on the server stops here
+/// before the next game rather than at the hour's renewal. Clicking the room
+/// again and again still asks once in the gap.
+pub fn check_soon() {
+    let Some(license) = CURRENT.get() else {
+        return;
+    };
+    if license.stored().refresh.is_none() || !claim_check(&license.0.last_check, now()) {
+        return;
+    }
+    let license = license.clone();
+    tauri::async_runtime::spawn(async move {
+        license.renew().await;
+    });
+}
+
+/// Take the turn to ask the server at `now` if the last look (`last`) is
+/// [`CHECK_GAP_SECONDS`] old; only one of several callers at once gets it.
+fn claim_check(last: &AtomicI64, now: i64) -> bool {
+    let prev = last.load(Ordering::Relaxed);
+    now - prev >= CHECK_GAP_SECONDS
+        && last
+            .compare_exchange(prev, now, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
 }
 
 /// What the interface shows, and what the rest of the app asks.
@@ -167,6 +200,8 @@ struct Inner {
     /// Moved on whenever what is stored changes: the expiry watch plans
     /// again, the paid module's installer looks again ([`Self::changes`]).
     changed: tokio::sync::watch::Sender<u64>,
+    /// When the server was last asked (unix seconds), for [`check_soon`].
+    last_check: AtomicI64,
 }
 
 impl LicenseManager {
@@ -188,6 +223,7 @@ impl LicenseManager {
             stored: Mutex::new(stored),
             calls: tokio::sync::Mutex::new(()),
             changed: tokio::sync::watch::Sender::new(0),
+            last_check: AtomicI64::new(0),
         }))
     }
 
@@ -336,6 +372,7 @@ impl LicenseManager {
     /// is; a refusal ends the session here.
     pub async fn renew(&self) -> LicenseStatus {
         let _call = self.0.calls.lock().await;
+        self.0.last_check.store(now(), Ordering::Relaxed);
         let Some(refresh) = self.stored().refresh else {
             return self.status();
         };
@@ -411,18 +448,25 @@ impl LicenseManager {
         self.watch_expiry();
     }
 
-    /// Tell the interface the moment the token runs out. The status is worked
-    /// out from the token whenever it is asked for, so the paid features
-    /// already stop then; this is for what the interface shows (a test key
-    /// lasts minutes, far less than a renewal's hour).
+    /// The moment the token runs out, renew it and tell the interface. The
+    /// status is worked out from the token whenever it is asked for, so the
+    /// paid features already stop then; the renewal picks up what comes next
+    /// at once rather than at the hour's renewal: the paid time waiting
+    /// behind a free key that just ended, or the paid time that just did.
     fn watch_expiry(&self) {
         let this = self.clone();
         let mut changes = self.changes();
         tauri::async_runtime::spawn(async move {
             loop {
-                let wait = until_expiry(this.status().token_expires_at, now());
+                let expires = this.status().token_expires_at;
+                let wait = until_expiry(expires, now());
                 tokio::select! {
                     _ = tokio::time::sleep(wait) => {
+                        // With no token running out this is only the hour's
+                        // look; `start_background` renews on its own then.
+                        if expires.is_some() {
+                            this.renew().await;
+                        }
                         let _ = this.0.app.emit(LICENSE_CHANGED, &this.status());
                     }
                     // Signed in, renewed, redeemed: plan again.
@@ -443,6 +487,19 @@ mod tests {
         assert_eq!(until_expiry(Some(1_000), 1_000), Duration::from_secs(1));
         assert_eq!(until_expiry(Some(900), 1_000), RENEW_EVERY);
         assert_eq!(until_expiry(None, 1_000), RENEW_EVERY);
+    }
+
+    #[test]
+    fn the_game_asks_the_server_at_most_once_in_ninety_seconds() {
+        let last = AtomicI64::new(0);
+        assert!(claim_check(&last, 10_000));
+        // The room clicked again and again: no more asks in the gap.
+        assert!(!claim_check(&last, 10_001));
+        assert!(!claim_check(&last, 10_089));
+        assert!(claim_check(&last, 10_090));
+        // A renewal of its own (the hour's) counts as a look.
+        last.store(20_000, Ordering::Relaxed);
+        assert!(!claim_check(&last, 20_050));
     }
 
     #[test]

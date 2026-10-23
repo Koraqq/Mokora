@@ -4,9 +4,12 @@
 //! the same window (children of it): the **interface** (`ui-<id>`, the React
 //! app, filling the window) and the **game** (`game-<id>`, laid over the
 //! interface wherever the interface keeps a placeholder for it). Only the
-//! shown account's interface is visible. The others' games keep running:
-//! they are *parked* off the window's edge rather than hidden, because a hidden
-//! web view stops the game's loop and a match would stall.
+//! shown account's interface is on screen. On Windows, the other interfaces
+//! stay rendered but are *parked* off the window's edge: WebView2 explicitly
+//! does not render a controller whose `IsVisible` is false, which leaves its
+//! last composed frame stale when shared shell state changes. Their games are
+//! parked for the same reason: a hidden game would stop its loop and stall a
+//! match. Other platforms keep hiding inactive interfaces for now.
 //!
 //! Every web view of an account shares that account's storage (its login) and
 //! its DevTools port, so the account's capture reads the game through its own
@@ -96,6 +99,9 @@ pub struct ViewSpec {
     /// The language a still-empty interface starts in (see
     /// `accounts::ui_language`).
     pub language: Option<String>,
+    /// The shared first chip in the account strip, available before React's
+    /// first paint so a newly opened account does not jump from zero.
+    pub account_tabs_first: usize,
     /// Where the game view's capture is read from on Linux (see
     /// `capture::webkit`).
     #[cfg(target_os = "linux")]
@@ -133,8 +139,18 @@ pub fn create(app: &AppHandle, spec: &ViewSpec) -> tauri::Result<()> {
 
     // The interface comes first: views made later paint above it.
     let mut ui = WebviewBuilder::new(ui_label(&spec.id), WebviewUrl::App("index.html".into()))
-        .auto_resize()
-        .additional_browser_args(&args);
+        .additional_browser_args(&args)
+        .initialization_script(format!(
+            "window.__MOKORA_ACCOUNT_TABS_FIRST__ = {};",
+            spec.account_tabs_first
+        ));
+    // A parked Windows interface must keep its off-screen bounds across a
+    // resize, so `resize_ui_views` owns those bounds. Other platforms retain
+    // Tauri's automatic full-window sizing and their existing hide/show path.
+    #[cfg(not(windows))]
+    {
+        ui = ui.auto_resize();
+    }
     if let Some(lang) = &spec.language {
         // The interface keeps its language in this key (`i18n/index.ts`); only
         // fill it in when the account has not chosen one yet.
@@ -212,6 +228,25 @@ pub fn destroy(app: &AppHandle, id: &str) {
 /// Show or hide account `id`'s interface.
 pub fn set_ui_visible(app: &AppHandle, id: &str, visible: bool) {
     if let Some(view) = app.get_webview(&ui_label(id)) {
+        #[cfg(windows)]
+        {
+            if let Ok(window) = main_window(app) {
+                if let Ok(physical) = window.inner_size() {
+                    let size: LogicalSize<f64> =
+                        physical.to_logical(window.scale_factor().unwrap_or(1.0));
+                    let x = if visible { 0.0 } else { PARKED_AT };
+                    let _ = view.set_bounds(tauri::Rect {
+                        position: LogicalPosition::new(x, 0.0).into(),
+                        size: LogicalSize::new(size.width.max(1.0), size.height.max(1.0)).into(),
+                    });
+                    // Newly created views begin hidden. Once shown, inactive
+                    // views remain visible off-screen so WebView2 keeps their
+                    // compositor surfaces current.
+                    let _ = view.show();
+                }
+            }
+        }
+        #[cfg(not(windows))]
         let _ = if visible { view.show() } else { view.hide() };
     }
     // Showing a view raises it on Linux; the games stay above the interfaces.
@@ -222,6 +257,38 @@ pub fn set_ui_visible(app: &AppHandle, id: &str, visible: bool) {
                 super::gtk_layout::raise(&view);
             }
         }
+    }
+}
+
+/// Keep every Windows interface fitted to the window after a resize while
+/// preserving the off-screen parking of inactive accounts.
+#[cfg(windows)]
+pub fn resize_ui_views(app: &AppHandle, active: &str) {
+    let Ok(window) = main_window(app) else { return };
+    let Ok(physical) = window.inner_size() else {
+        return;
+    };
+    let size: LogicalSize<f64> = physical.to_logical(window.scale_factor().unwrap_or(1.0));
+    for (label, view) in app.webviews() {
+        let Some(id) = label.strip_prefix("ui-") else {
+            continue;
+        };
+        let x = if id == active { 0.0 } else { PARKED_AT };
+        let _ = view.set_bounds(tauri::Rect {
+            position: LogicalPosition::new(x, 0.0).into(),
+            size: LogicalSize::new(size.width.max(1.0), size.height.max(1.0)).into(),
+        });
+    }
+}
+
+/// Give another account interface the shared account-strip position before it
+/// is brought on screen. The synchronous DOM event lets React finish this tiny
+/// update while the view is still parked or hidden.
+pub fn sync_account_tabs_first(app: &AppHandle, id: &str, first: usize) {
+    if let Some(view) = app.get_webview(&ui_label(id)) {
+        let _ = view.eval(format!(
+            "window.dispatchEvent(new CustomEvent('mokora-account-tabs-sync', {{ detail: {first} }}));"
+        ));
     }
 }
 

@@ -9,8 +9,10 @@ import {
   isEmail,
   isKeyShape,
   keyStateAt,
+  licenseLosses,
   needsAttention,
   paidAccess,
+  type LicenseKey,
   type LicenseStatus,
 } from './license'
 
@@ -88,5 +90,64 @@ describe('paid features in the module', () => {
     expect(paidAccess(paid, false)).toBe('downloading')
     expect(paidAccess(paid, true)).toBe('open')
     expect(paidAccess(paid, null)).toBe('open')
+  })
+})
+
+describe('what the player loses, for a notice', () => {
+  const NOW = 1_000_000
+  const key = (hint: string, state: string, extra: Partial<LicenseKey> = {}): LicenseKey => ({
+    hint,
+    days: 30,
+    start: NOW - 10,
+    end: NOW + 1000,
+    state,
+    ...extra,
+  })
+  const paid = (keys: LicenseKey[]): LicenseStatus => ({
+    ...status('active', ['pro']),
+    email: 'me@x.com',
+    paid_until: NOW + 1000,
+    keys,
+  })
+  const free = (keys: LicenseKey[]): LicenseStatus => ({ ...status('no_time'), email: 'me@x.com', keys })
+
+  it('a running or queued key stopped or deleted on the server', () => {
+    const before = paid([key('Mokora-AAA…', 'running'), key('Mokora-BBB…', 'queued', { start: NOW + 1000, end: NOW + 2000 })])
+    expect(licenseLosses(before, free([key('Mokora-AAA…', 'revoked'), key('Mokora-BBB…', 'queued')]), NOW)).toEqual([
+      { kind: 'revoked', hint: 'Mokora-AAA…' },
+    ])
+    // A queued key deleted: still paid, but that key is gone.
+    expect(licenseLosses(before, paid([key('Mokora-AAA…', 'running')]), NOW)).toEqual([
+      { kind: 'revoked', hint: 'Mokora-BBB…' },
+    ])
+  })
+
+  it('the paid time running out', () => {
+    const before = paid([key('Mokora-AAA…', 'running', { end: NOW })])
+    expect(licenseLosses(before, free([key('Mokora-AAA…', 'used', { end: NOW })]), NOW)).toEqual([{ kind: 'expired' }])
+  })
+
+  it('a free key the player redeemed is not a loss', () => {
+    const before = paid([key('Mokora-AAA…', 'running')])
+    const after = free([
+      key('Mokora-FFF…', 'running', { free: true, days: 0, minutes: 60, end: NOW + 3600 }),
+      key('Mokora-AAA…', 'queued', { start: NOW + 3600, end: NOW + 4600 }),
+    ])
+    expect(licenseLosses(before, after, NOW)).toEqual([])
+  })
+
+  it('the account stopped', () => {
+    expect(licenseLosses(paid([]), { ...status('locked'), email: 'me@x.com' }, NOW)).toEqual([
+      { kind: 'stopped', state: 'locked' },
+    ])
+  })
+
+  it('nothing at the first look, on signing out or in, or offline', () => {
+    const before = paid([key('Mokora-AAA…', 'running')])
+    expect(licenseLosses(null, before, NOW)).toEqual([])
+    expect(licenseLosses(before, status('signed_out'), NOW)).toEqual([])
+    expect(licenseLosses(before, { ...free([]), email: 'other@x.com' }, NOW)).toEqual([])
+    expect(licenseLosses(before, { ...before, state: 'offline', features: [] }, NOW)).toEqual([])
+    expect(licenseLosses(before, before, NOW)).toEqual([])
   })
 })

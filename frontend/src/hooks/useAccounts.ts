@@ -18,8 +18,8 @@ let users = 0
 let timer: ReturnType<typeof setInterval> | undefined
 let stopListening: (() => void) | undefined
 
-function load() {
-  fetchAccounts()
+function load(): Promise<void> {
+  return fetchAccounts()
     .then((accounts) => useAccountsStore.setState({ accounts }))
     .catch(() => {})
 }
@@ -51,7 +51,7 @@ function release() {
  * log-out…). Errors keep the last list. Shared by the account picker, the
  * tabs, the status bar and the quit flow.
  */
-export function useAccounts(): { accounts: AccountInfo[]; refresh: () => void } {
+export function useAccounts(): { accounts: AccountInfo[]; refresh: () => Promise<void> } {
   const accounts = useAccountsStore((s) => s.accounts)
   useEffect(() => {
     acquire()

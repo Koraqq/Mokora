@@ -7,6 +7,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Toaster } from '@/components/ui/sonner'
 import { UpdateNotifier } from '@/components/UpdateNotifier'
 import { ProModuleNotifier } from '@/components/ProModuleNotifier'
+import { LicenseLossNotifier } from '@/components/LicenseLossNotifier'
 import { AnnouncementsDialog } from '@/components/AnnouncementsDialog'
 import { InstallBlockingOverlay } from '@/components/InstallBlockingOverlay'
 import { SettingsLock } from '@/components/SettingsLock'
@@ -46,6 +47,7 @@ export default function App() {
         <Toaster compact />
         <UpdateNotifier />
         <ProModuleNotifier />
+        <LicenseLossNotifier />
         <AnnouncementsDialog />
         <InstallBlockingOverlay />
         <NoCoinsDialog />
@@ -95,6 +97,7 @@ export default function App() {
       <Toaster />
       <UpdateNotifier />
       <ProModuleNotifier />
+      <LicenseLossNotifier />
       <AnnouncementsDialog />
       <InstallBlockingOverlay />
       <NoCoinsDialog />

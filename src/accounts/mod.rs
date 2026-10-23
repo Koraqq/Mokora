@@ -55,6 +55,10 @@ const STARTUP_FILE: &str = "startup.json";
 /// The interface language last chosen, in the accounts directory: a newly
 /// opened account (its own storage starts empty) begins in it.
 const UI_FILE: &str = "ui.json";
+/// The order of the account chips on the play screen. Kept apart from
+/// [`UI_FILE`] so changing the language and dragging a chip from two account
+/// views at once cannot overwrite one another.
+const ORDER_FILE: &str = "order.json";
 /// The game page's layout one account shared with all of them, in the
 /// accounts directory (see [`share_layout`]).
 const LAYOUT_FILE: &str = "layout.json";
@@ -335,6 +339,70 @@ pub fn set_ui_language(lang: &str) -> Result<()> {
     std::fs::write(
         &path,
         serde_json::to_vec(&serde_json::json!({ "lang": lang }))?,
+    )
+    .with_context(|| format!("writing {}", path.display()))
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct AccountOrder {
+    accounts: Vec<String>,
+}
+
+/// Put account information in the order the player chose. IDs absent from an
+/// older order file stay at the end in their natural order, so adding an
+/// account never hides or displaces an existing one unpredictably.
+pub fn apply_order(accounts: &mut [AccountInfo]) {
+    apply_order_in(&crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)), accounts);
+}
+
+fn apply_order_in(accounts_root: &Path, accounts: &mut [AccountInfo]) {
+    let Ok(bytes) = std::fs::read(accounts_root.join(ORDER_FILE)) else {
+        return;
+    };
+    let Ok(saved) = serde_json::from_slice::<AccountOrder>(&bytes) else {
+        return;
+    };
+    let positions: std::collections::HashMap<&str, usize> = saved
+        .accounts
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (id.as_str(), i))
+        .collect();
+    accounts.sort_by_key(|account| {
+        positions
+            .get(account.id.as_str())
+            .copied()
+            .unwrap_or(usize::MAX)
+    });
+}
+
+/// Remember the account-chip order. A stale interface may mention an account
+/// just deleted or omit one just added: unknown IDs are ignored and missing
+/// known IDs are appended, rather than rejecting the whole drag.
+pub fn set_order(ids: &[String]) -> Result<()> {
+    set_order_in(
+        &crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)),
+        ids,
+        &known().into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
+    )
+}
+
+fn set_order_in(accounts_root: &Path, ids: &[String], known: &[String]) -> Result<()> {
+    let known_set: std::collections::HashSet<&str> = known.iter().map(String::as_str).collect();
+    let mut seen = std::collections::HashSet::new();
+    let mut accounts: Vec<String> = ids
+        .iter()
+        .filter(|id| known_set.contains(id.as_str()) && seen.insert(id.as_str()))
+        .cloned()
+        .collect();
+    accounts.extend(known.iter().filter(|id| seen.insert(id.as_str())).cloned());
+
+    std::fs::create_dir_all(accounts_root)
+        .with_context(|| format!("creating {}", accounts_root.display()))?;
+    let path = accounts_root.join(ORDER_FILE);
+    crate::util::write_atomic(
+        &path,
+        serde_json::to_vec_pretty(&AccountOrder { accounts })?,
     )
     .with_context(|| format!("writing {}", path.display()))
 }
@@ -713,6 +781,51 @@ first_run_completed = true
         mark_duplicates(&mut accounts);
         let flags: Vec<bool> = accounts.iter().map(|a| a.duplicate).collect();
         assert_eq!(flags, [true, true, false, false]);
+    }
+
+    #[test]
+    fn the_saved_chip_order_is_shared_and_new_accounts_follow_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let known = vec!["main".to_string(), "2".to_string(), "3".to_string()];
+        set_order_in(
+            dir.path(),
+            &["3".to_string(), "main".to_string(), "missing".to_string()],
+            &known,
+        )
+        .unwrap();
+
+        let mut accounts = vec![info("main", None), info("2", None), info("3", None)];
+        apply_order_in(dir.path(), &mut accounts);
+        assert_eq!(
+            accounts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+            ["3", "main", "2"]
+        );
+        assert!(!dir.path().join("order.json.tmp").exists());
+    }
+
+    #[test]
+    fn a_bad_or_old_chip_order_never_loses_an_account() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(ORDER_FILE), b"not json").unwrap();
+        let mut accounts = vec![info("main", None), info("2", None)];
+        apply_order_in(dir.path(), &mut accounts);
+        assert_eq!(
+            accounts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+            ["main", "2"]
+        );
+
+        let known = vec!["main".to_string(), "2".to_string()];
+        set_order_in(
+            dir.path(),
+            &["2".to_string(), "2".to_string(), "gone".to_string()],
+            &known,
+        )
+        .unwrap();
+        apply_order_in(dir.path(), &mut accounts);
+        assert_eq!(
+            accounts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+            ["2", "main"]
+        );
     }
 
     #[test]

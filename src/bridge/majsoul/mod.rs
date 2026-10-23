@@ -572,6 +572,9 @@ impl MajsoulBridge {
                 Vec::new()
             }
             (MessageType::Response, METHOD_FETCH_CURRENT_MATCH_INFO) => {
+                // A room opened, the step before every match: a good time to
+                // learn whether the key still holds (at most every 90s).
+                crate::license::check_soon();
                 // How many are playing each table — what the next-game flow
                 // picks East or South by, so the queue fills quickly.
                 if let (Some(lobby), Some(matches)) = (

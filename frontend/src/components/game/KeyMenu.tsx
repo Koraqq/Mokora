@@ -330,9 +330,16 @@ function SignedIn({
         <ul className="grid gap-1">
           {keys.map((k, i) => (
             <li key={i} className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2 py-1.5 text-xs">
-              <span className="truncate font-mono">{k.hint}</span>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate font-mono">{k.hint}</span>
+                {k.free && (
+                  <span className="shrink-0 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                    {t('license.free_key')}
+                  </span>
+                )}
+              </span>
               <span className="shrink-0 tabular-nums text-muted-foreground">
-                {/* A test key of under a day: its times, not its dates. */}
+                {/* A key of under a day: its times, not its dates. */}
                 {k.start != null &&
                   (k.minutes != null && k.minutes < 1440
                     ? hm(k.start)

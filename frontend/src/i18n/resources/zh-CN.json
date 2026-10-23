@@ -1147,7 +1147,15 @@
     "tabs": {
       "in_game": "对局中",
       "lobby": "在大厅",
-      "connecting": "登录中"
+      "connecting": "登录中",
+      "logout": "退出账号？",
+      "logout_title": "退出 {{name}}",
+      "logout_body": "是否要退出 {{name}} 账号？",
+      "logout_in_game": "{{name}} 正在对局中，确定要退出吗？这会中断当前对局。",
+      "logout_confirm": "确定退出",
+      "logout_failed": "无法退出账号",
+      "last_open": "最后一个打开的账号必须保留",
+      "order_failed": "无法保存账号顺序"
     },
     "quit": {
       "title": "退出 Mokora",
@@ -1206,7 +1214,8 @@
       "network": "连不上授权服务器，请检查网络。",
       "unknown": "发生错误，请稍后再试。",
       "device_expired": "请重新验证 Email。",
-      "pro_required": "需要付费会员才能使用。"
+      "pro_required": "需要付费会员才能使用。",
+      "too_many_redeems": "兑换太频繁了，请 2 分钟后再试。"
     },
     "signed_out": "尚未登录",
     "verify": "验证",
@@ -1218,7 +1227,15 @@
     "pro_title": "付费会员功能",
     "pro_review": "开始新的复盘需要付费会员，以前复盘过的结果仍然可以查看。点右上角的钥匙图标（会员功能）兑换密钥后即可使用。",
     "pro_accounts": "免费会员最多 2 个账号，付费会员不限。点右上角的钥匙图标（会员功能）兑换密钥后即可使用。",
-    "status_paid_hours": "状态：付费会员（到期：{{time}} 剩 {{hours}} 小时 {{minutes}} 分钟）"
+    "status_paid_hours": "状态：付费会员（到期：{{time}} 剩 {{hours}} 小时 {{minutes}} 分钟）",
+    "free_key": "免费",
+    "lost": {
+      "revoked": "密钥已失效",
+      "revoked_hint": "{{hint}} 已被停用，付费时间已重新计算。",
+      "expired": "付费会员已到期",
+      "expired_hint": "目前是免费会员，可以在会员功能兑换新的密钥。",
+      "stopped": "账号已停用"
+    }
   },
   "pro": {
     "downloading": "正在下载付费功能 {{percent}}%",

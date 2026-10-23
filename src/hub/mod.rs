@@ -29,6 +29,7 @@ use crate::accounts::{self, AccountInfo};
 use crate::config::{self, CaptureMode};
 use crate::ipc::{AppState, Route, Shared};
 use anyhow::{bail, Context, Result};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use tauri::async_runtime::JoinHandle;
@@ -76,7 +77,9 @@ struct Inner {
     open: Mutex<Vec<Arc<Account>>>,
     /// The id of the account the window shows; shared with the event routes.
     active: Arc<RwLock<String>>,
-    quitting: std::sync::atomic::AtomicBool,
+    /// The first account chip in the shared three-chip viewport.
+    account_tabs_first: AtomicUsize,
+    quitting: AtomicBool,
 }
 
 /// The accounts, managed by Tauri.
@@ -90,7 +93,8 @@ impl Hub {
             shared,
             open: Mutex::new(Vec::new()),
             active: Arc::new(RwLock::new(String::new())),
-            quitting: std::sync::atomic::AtomicBool::new(false),
+            account_tabs_first: AtomicUsize::new(0),
+            quitting: AtomicBool::new(false),
         }))
     }
 
@@ -112,6 +116,14 @@ impl Hub {
 
     pub fn active_id(&self) -> String {
         self.0.active.read().map(|a| a.clone()).unwrap_or_default()
+    }
+
+    pub fn account_tabs_first(&self) -> usize {
+        self.0.account_tabs_first.load(Ordering::Relaxed)
+    }
+
+    pub fn set_account_tabs_first(&self, first: usize) {
+        self.0.account_tabs_first.store(first, Ordering::Relaxed);
     }
 
     fn open_list(&self) -> Vec<Arc<Account>> {
@@ -173,6 +185,7 @@ impl Hub {
             port,
             game_url,
             language: accounts::ui_language(),
+            account_tabs_first: self.account_tabs_first(),
             #[cfg(target_os = "linux")]
             webkit_tap: state.webkit_tap.clone(),
         };
@@ -261,15 +274,28 @@ impl Hub {
     /// hidden and its game parked.
     fn apply_visibility(&self) {
         let active = self.active_id();
-        for account in self.open_list() {
-            let shown = account.id == active;
-            views::set_ui_visible(&self.0.app, &account.id, shown);
+        let accounts = self.open_list();
+        let target = accounts.iter().find(|account| account.id == active);
+
+        // Paint the destination interface first so the shell never has a blank
+        // frame. Then remove every old game view from the window before placing
+        // the destination game. WebView2 otherwise races the old and new child
+        // windows for z-order and can briefly cover the account bar.
+        if let Some(account) = target {
+            views::sync_account_tabs_first(&self.0.app, &account.id, self.account_tabs_first());
+            views::set_ui_visible(&self.0.app, &account.id, true);
+        }
+        for account in accounts.iter().filter(|account| account.id != active) {
+            views::set_ui_visible(&self.0.app, &account.id, false);
+            views::park_game(&self.0.app, &account.id);
+        }
+        if let Some(account) = target {
             let slot = account.game.lock().ok();
             match slot.as_deref() {
                 Some(GameSlot {
                     bounds: Some(bounds),
                     wanted: true,
-                }) if shown => views::place_game(&self.0.app, &account.id, *bounds),
+                }) => views::place_game(&self.0.app, &account.id, *bounds),
                 _ => views::park_game(&self.0.app, &account.id),
             }
         }
@@ -354,7 +380,16 @@ impl Hub {
             });
         }
         accounts::mark_duplicates(&mut out);
+        accounts::apply_order(&mut out);
         out
+    }
+
+    /// Whether the open account `id` is in a match. Kept on the Hub so the
+    /// logout command checks the live lobby state immediately before closing,
+    /// rather than trusting the interface's periodically refreshed copy.
+    pub fn account_in_game(&self, id: &str) -> bool {
+        self.get(id)
+            .is_some_and(|account| account.state.autoplay_context.lobby.in_game())
     }
 
     /// Close account `id`: its capture stops and its views go (the login is
@@ -391,7 +426,6 @@ impl Hub {
 
     /// Stop every account's capture and end Mokora.
     pub async fn quit_all(&self) {
-        use std::sync::atomic::Ordering;
         if self.0.quitting.swap(true, Ordering::SeqCst) {
             return;
         }
@@ -422,12 +456,17 @@ pub fn handle_close(hub: &Hub) {
         return;
     };
     let for_event = hub.clone();
-    window.on_window_event(move |event| {
-        if let WindowEvent::CloseRequested { api, .. } = event {
+    window.on_window_event(move |event| match event {
+        WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
             let hub = for_event.clone();
             tauri::async_runtime::spawn(async move { hub.close_pressed().await });
         }
+        #[cfg(windows)]
+        WindowEvent::Resized(_) => {
+            views::resize_ui_views(&for_event.0.app, &for_event.active_id());
+        }
+        _ => {}
     });
 }
 

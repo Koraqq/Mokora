@@ -30,5 +30,26 @@ fn main() {
     let target = env::var("TARGET").expect("TARGET not set by cargo");
     println!("cargo:rustc-env=TARGET_TRIPLE={target}");
 
-    tauri_build::build();
+    // The Windows app manifest (Common Controls v6, which Tauri's windowing
+    // code calls into) goes into every binary the linker makes, the test
+    // harness included. Left to Tauri it only reaches the app's exe, and a
+    // test binary that links that code fails to start with
+    // STATUS_ENTRYPOINT_NOT_FOUND. Same content as Tauri's default.
+    let msvc = env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc");
+    if msvc {
+        let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"))
+            .join("windows-app-manifest.xml");
+        println!("cargo:rerun-if-changed=windows-app-manifest.xml");
+        println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+        // No UAC section of the linker's own: the manifest stays as Tauri's.
+        println!("cargo:rustc-link-arg=/MANIFESTUAC:NO");
+        println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
+        tauri_build::try_build(
+            tauri_build::Attributes::new()
+                .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest()),
+        )
+        .expect("tauri build");
+    } else {
+        tauri_build::build();
+    }
 }

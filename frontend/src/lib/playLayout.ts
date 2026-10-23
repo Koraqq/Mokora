@@ -7,11 +7,11 @@
 
 /** The panel's share of the window until the player sizes it: the game keeps
  *  the rest, which fits its table without wide empty bands around it. */
-export const ASIDE_DEFAULT_RATIO = 0.22
+export const ASIDE_DEFAULT_RATIO = 0.343
 /** The width used when the window's width is unknown. */
-export const ASIDE_DEFAULT = 340
+export const ASIDE_DEFAULT = 535
 export const ASIDE_MIN = 260
-const ASIDE_MAX = 800
+const ASIDE_MAX = 1000
 /** The game keeps at least this much of the window. */
 const GAME_MIN = 480
 

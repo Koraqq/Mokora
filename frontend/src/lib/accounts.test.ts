@@ -5,6 +5,7 @@ import {
   byRecentLogin,
   canAddAccount,
   ownPlayerKey,
+  swapAccountIds,
   type AccountInfo,
 } from './accounts'
 
@@ -81,5 +82,22 @@ describe('the free account limit', () => {
     expect(canAddAccount(one, false)).toBe(true)
     expect(canAddAccount(two, false)).toBe(false)
     expect(canAddAccount(two, true)).toBe(true)
+  })
+})
+
+describe('account chip order', () => {
+  it('moves the dragged id to the entered position without losing an id', () => {
+    expect(swapAccountIds(['main', '2', '3', '4'], 'main', '3')).toEqual([
+      '2', '3', 'main', '4',
+    ])
+    expect(swapAccountIds(['main', '2', '3', '4'], '4', '2')).toEqual([
+      'main', '4', '2', '3',
+    ])
+  })
+
+  it('leaves an invalid or same-position drag alone', () => {
+    const ids = ['main', '2']
+    expect(swapAccountIds(ids, 'main', 'main')).toBe(ids)
+    expect(swapAccountIds(ids, 'missing', '2')).toBe(ids)
   })
 })

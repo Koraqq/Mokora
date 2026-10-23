@@ -5,8 +5,10 @@
 export type LicenseKey = {
   hint: string
   days: number
-  /** A test key's length in minutes, whole hours (`days` is then 0). */
+  /** A free key's length in minutes, whole hours (`days` is then 0). */
   minutes?: number | null
+  /** A free key: the account is free while it runs, its paid time waiting. */
+  free?: boolean
   start: number | null
   end: number | null
   /** queued | running | used | revoked */
@@ -111,6 +113,35 @@ export function isPaid(status: LicenseStatus, now: number): boolean {
   return status.paid_until != null && status.paid_until > now
 }
 
+/** Something the player loses that the server decided, for a notice:
+ *  a key stopped (or deleted), the paid time over, the account stopped. */
+export type LicenseLoss =
+  | { kind: 'revoked'; hint: string }
+  | { kind: 'expired' }
+  | { kind: 'stopped'; state: 'locked' | 'blocked' }
+
+/** What was lost between status `prev` and `next` (the same account signed
+ *  in both times). A free key starting is the player's own doing, and a
+ *  signed-out or offline status says nothing new, so neither is a loss. */
+export function licenseLosses(prev: LicenseStatus | null, next: LicenseStatus, now: number): LicenseLoss[] {
+  if (!prev || !prev.signed_in || !next.signed_in || prev.email !== next.email) return []
+  if ((next.state === 'locked' || next.state === 'blocked') && next.state !== prev.state) {
+    return [{ kind: 'stopped', state: next.state }]
+  }
+  const after = new Map(next.keys.map((k) => [k.hint, k]))
+  const revoked: LicenseLoss[] = prev.keys
+    .filter((k) => {
+      const was = keyStateAt(k, now)
+      const later = after.get(k.hint)
+      return (was === 'running' || was === 'queued') && (!later || later.state === 'revoked')
+    })
+    .map((k) => ({ kind: 'revoked', hint: k.hint }))
+  if (revoked.length > 0) return revoked
+  const freeRunning = next.keys.some((k) => k.free && keyStateAt(k, now) === 'running')
+  if (hasPro(prev) && !hasPro(next) && next.state === 'no_time' && !freeRunning) return [{ kind: 'expired' }]
+  return []
+}
+
 /** What "verify" did (mirrors `crate::license::Started`). */
 export type Started = { result: 'signed_in'; status: LicenseStatus } | { result: 'code_sent' }
 
@@ -137,6 +168,7 @@ export const LICENSE_ERRORS = [
   'invalid_key',
   'revoked',
   'already_used',
+  'too_many_redeems',
   'no_machine_id',
   'device_expired',
   'bad_token',

@@ -31,6 +31,7 @@ so a login made before accounts existed is kept; the others keep theirs in
 
 `accounts/startup.json` (`{account}`) is the account opened when Mokora starts;
 `accounts/layout.json` a game-page layout shared with every account;
+`accounts/order.json` the account-chip order shared by every account window;
 `accounts/ui.json` the interface language last chosen, so an account opened
 later starts in it.
 

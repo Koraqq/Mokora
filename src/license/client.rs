@@ -45,9 +45,12 @@ impl ServerError {
 pub struct KeyView {
     pub hint: String,
     pub days: i64,
-    /// A test key's length in minutes (its `days` is then 0).
+    /// A free key's length in minutes (its `days` is then 0).
     #[serde(default)]
     pub minutes: Option<i64>,
+    /// A free key: the account is free while it runs, its paid time waiting.
+    #[serde(default)]
+    pub free: bool,
     pub start: Option<i64>,
     pub end: Option<i64>,
     /// queued | running | used | revoked
@@ -217,6 +220,16 @@ mod tests {
         )
         .unwrap();
         assert_eq!(a.keys[0].state, "running");
+        assert!(!a.keys[0].free);
+        // A free key running, the paid time waiting behind it.
+        let a: AccountView = serde_json::from_str(
+            r#"{"email":"me@x.com","state":"no_time","paid_until":null,"free_until":9,
+                "keys":[{"hint":"Mokora-CD…","days":0,"minutes":60,"free":true,"start":1,"end":9,"state":"running"},
+                        {"hint":"Mokora-AB…","days":30,"free":false,"start":9,"end":99,"state":"queued"}]}"#,
+        )
+        .unwrap();
+        assert!(a.keys[0].free && !a.keys[1].free);
+        assert_eq!(a.paid_until, None);
     }
 }
 

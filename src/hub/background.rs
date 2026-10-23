@@ -69,10 +69,35 @@ impl Hub {
 
     /// Bring the window back from the tray or the taskbar.
     pub fn show_window(&self) {
+        let hub = self.clone();
+        if let Err(error) = self
+            .0
+            .app
+            .run_on_main_thread(move || hub.show_window_on_main_thread())
+        {
+            warn!("hub: could not schedule the window restore: {error}");
+        }
+    }
+
+    /// Window and child-WebView operations belong to the Windows UI thread.
+    /// The single-instance callback can arrive elsewhere, so doing the whole
+    /// restore here avoids an intermittent no-op when a hidden app is opened
+    /// again from its shortcut.
+    fn show_window_on_main_thread(&self) {
         if let Some(window) = self.0.app.get_window(views::MAIN) {
-            let _ = window.show();
-            let _ = window.unminimize();
-            let _ = window.set_focus();
+            if let Err(error) = window.show() {
+                warn!("hub: could not show the main window: {error}");
+                return;
+            }
+            if let Err(error) = window.unminimize() {
+                warn!("hub: could not restore the main window: {error}");
+            }
+            self.apply_visibility();
+            if let Err(error) = window.set_focus() {
+                warn!("hub: could not focus the main window: {error}");
+            }
+        } else {
+            warn!("hub: cannot restore the missing main window");
         }
     }
 

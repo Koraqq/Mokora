@@ -10,12 +10,12 @@ import {
 
 describe('asideWidthFor', () => {
   it('gives the panel the same share of any window', () => {
-    expect(asideWidthFor(ASIDE_DEFAULT_RATIO, 1560)).toBe(343)
-    expect(asideWidthFor(ASIDE_DEFAULT_RATIO, 2560)).toBe(563)
+    expect(asideWidthFor(ASIDE_DEFAULT_RATIO, 1560)).toBe(535)
+    expect(asideWidthFor(ASIDE_DEFAULT_RATIO, 2560)).toBe(878)
   })
   it('stays within the bounds', () => {
-    expect(asideWidthFor(ASIDE_DEFAULT_RATIO, 900)).toBe(ASIDE_MIN)
-    expect(asideWidthFor(0.5, 5000)).toBe(800)
+    expect(asideWidthFor(ASIDE_DEFAULT_RATIO, 700)).toBe(ASIDE_MIN)
+    expect(asideWidthFor(0.5, 5000)).toBe(1000)
   })
 })
 
@@ -30,7 +30,7 @@ describe('clampAsideWidth', () => {
     expect(clampAsideWidth(900, 1000)).toBe(520)
   })
   it('caps a very wide window', () => {
-    expect(clampAsideWidth(5000, 4000)).toBe(800)
+    expect(clampAsideWidth(5000, 4000)).toBe(1000)
   })
   it('falls back to the default for a bad value', () => {
     expect(clampAsideWidth(Number.NaN, 1600)).toBe(ASIDE_DEFAULT)

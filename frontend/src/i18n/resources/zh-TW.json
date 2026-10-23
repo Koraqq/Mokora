@@ -1147,7 +1147,15 @@
     "tabs": {
       "in_game": "對局中",
       "lobby": "在大廳",
-      "connecting": "登入中"
+      "connecting": "登入中",
+      "logout": "登出帳號？",
+      "logout_title": "登出 {{name}}",
+      "logout_body": "是否要登出 {{name}} 帳號嗎？",
+      "logout_in_game": "{{name}} 正在對局中，確定要登出嗎？這會中斷目前的對局。",
+      "logout_confirm": "確定登出",
+      "logout_failed": "無法登出帳號",
+      "last_open": "最後一個開啟的帳號必須保留",
+      "order_failed": "無法儲存帳號順序"
     },
     "quit": {
       "title": "退出 Mokora",
@@ -1206,7 +1214,8 @@
       "network": "連不上授權伺服器，請檢查網路。",
       "unknown": "發生錯誤，請稍後再試。",
       "device_expired": "請重新驗證 Email。",
-      "pro_required": "需要付費會員才能使用。"
+      "pro_required": "需要付費會員才能使用。",
+      "too_many_redeems": "兌換太頻繁了，請 2 分鐘後再試。"
     },
     "signed_out": "尚未登入",
     "verify": "驗證",
@@ -1218,7 +1227,15 @@
     "pro_title": "付費會員功能",
     "pro_review": "開始新的覆盤需要付費會員，以前覆盤過的結果仍然可以查看。按右上角的鑰匙圖示（會員功能）兌換金鑰後即可使用。",
     "pro_accounts": "免費會員最多 2 個帳號，付費會員不限。按右上角的鑰匙圖示（會員功能）兌換金鑰後即可使用。",
-    "status_paid_hours": "狀態：付費會員（到期：{{time}} 剩 {{hours}} 小時 {{minutes}} 分鐘）"
+    "status_paid_hours": "狀態：付費會員（到期：{{time}} 剩 {{hours}} 小時 {{minutes}} 分鐘）",
+    "free_key": "免費",
+    "lost": {
+      "revoked": "金鑰已失效",
+      "revoked_hint": "{{hint}} 已被停用，付費時間已重新計算。",
+      "expired": "付費會員已到期",
+      "expired_hint": "目前是免費會員，可以在會員功能兌換新的金鑰。",
+      "stopped": "帳號已停用"
+    }
   },
   "pro": {
     "downloading": "正在下載付費功能 {{percent}}%",

@@ -28,7 +28,7 @@ use crate::schema::{
 use crate::util::resolve_dir;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 /// Returns `true` exactly once per process the first time `bot_enabled`
 /// is observed as `true` here. Side-effect on success: flips `flag`
@@ -833,6 +833,37 @@ pub async fn list_accounts(
     Ok(hub.list(&state.account_id).await)
 }
 
+/// Remember the order of the account chips for every account view.
+#[tauri::command]
+pub async fn set_account_order(ids: Vec<String>, hub: State<'_, Hub>) -> CmdResult<()> {
+    crate::accounts::set_order(&ids).map_err(|e| format!("{e:#}"))?;
+    let _ = hub.app().emit("accounts-changed", ());
+    Ok(())
+}
+
+/// The left edge of the shared three-account strip. It belongs to the window,
+/// not to an account UI, so switching accounts never changes it.
+#[tauri::command]
+pub fn get_account_tabs_first(hub: State<'_, Hub>) -> usize {
+    hub.account_tabs_first()
+}
+
+/// Move the shared account strip after an explicit user scroll action.
+#[tauri::command]
+pub fn set_account_tabs_first(first: usize, hub: State<'_, Hub>) -> CmdResult<()> {
+    hub.set_account_tabs_first(first);
+    hub.app()
+        .emit("account-tabs-first-changed", first)
+        .map_err(|error| error.to_string())
+}
+
+/// A fresh read for the logout question; the account list is intentionally
+/// polled less often and may be a few seconds old.
+#[tauri::command]
+pub async fn account_in_game(id: String, hub: State<'_, Hub>) -> CmdResult<bool> {
+    Ok(hub.account_in_game(&id))
+}
+
 /// Remember the interface language, so accounts opened later start in it.
 #[tauri::command]
 pub async fn set_ui_language(lang: String) -> CmdResult<()> {
@@ -908,9 +939,22 @@ pub async fn switch_account(id: String, hub: State<'_, Hub>) -> CmdResult<()> {
 }
 
 /// Close account `id`: its game and runtime stop (the login is kept). The last
-/// open account stays.
+/// open account stays. An in-progress game needs the explicit confirmation;
+/// this is checked here again so a game starting after the dialog opened is
+/// never closed under a stale answer.
+fn logout_requires_game_confirmation(in_game: bool, allow_in_game: Option<bool>) -> bool {
+    in_game && !allow_in_game.unwrap_or(false)
+}
+
 #[tauri::command]
-pub async fn logout_account(id: String, hub: State<'_, Hub>) -> CmdResult<()> {
+pub async fn logout_account(
+    id: String,
+    allow_in_game: Option<bool>,
+    hub: State<'_, Hub>,
+) -> CmdResult<()> {
+    if logout_requires_game_confirmation(hub.account_in_game(&id), allow_in_game) {
+        return Err("account_in_game".into());
+    }
     hub.close(&id).await.map_err(|e| format!("{e:#}"))
 }
 
@@ -2045,6 +2089,10 @@ macro_rules! ipc_handlers {
             $crate::ipc::commands::get_log_dir,
             $crate::ipc::commands::get_next_game_status,
             $crate::ipc::commands::list_accounts,
+            $crate::ipc::commands::set_account_order,
+            $crate::ipc::commands::get_account_tabs_first,
+            $crate::ipc::commands::set_account_tabs_first,
+            $crate::ipc::commands::account_in_game,
             $crate::ipc::commands::set_account_avatar,
             $crate::ipc::commands::set_ui_language,
             $crate::ipc::commands::clear_account_avatar,
@@ -2102,6 +2150,14 @@ macro_rules! ipc_handlers {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn an_active_game_cannot_close_without_explicit_confirmation() {
+        assert!(logout_requires_game_confirmation(true, None));
+        assert!(logout_requires_game_confirmation(true, Some(false)));
+        assert!(!logout_requires_game_confirmation(true, Some(true)));
+        assert!(!logout_requires_game_confirmation(false, None));
+    }
 
     /// Only `http(s)://` may reach the OS opener — anything else could be
     /// abused as a generic process/file launcher. (That a query-string URL
