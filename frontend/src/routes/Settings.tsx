@@ -40,8 +40,12 @@ import {
   CUSTOM_BASE_VARS,
   THEME_MODES,
   THEME_PALETTES,
+  DEFAULT_CUSTOM_DARK,
+  DEFAULT_CUSTOM_LIGHT,
+  loadTheme,
   useThemeStore,
   type CustomBaseVar,
+  type CustomTheme,
   type ThemeMode,
   type ThemePalette,
 } from '@/stores/themeStore'
@@ -64,6 +68,38 @@ import {
   OVERLAY_TOP_N_MAX,
   OVERLAY_TOP_N_MIN,
 } from '@/types'
+
+type SettingsUiDraft = {
+  language: string
+  themeMode: ThemeMode
+  themePalette: ThemePalette
+  customTheme: CustomTheme
+  uiScale: number
+  sidebarHoverOpen: boolean
+  sidebarDisabled: boolean
+  updateOnLaunch: boolean
+  periodicUpdates: boolean
+  developerMode: boolean
+}
+
+function currentUiSettings(language: string): SettingsUiDraft {
+  const theme = useThemeStore.getState()
+  const prefs = useUiPrefsStore.getState()
+  const sidebar = useSidebar.getState().settings
+  const updater = useUpdaterStore.getState()
+  return {
+    language,
+    themeMode: theme.mode,
+    themePalette: theme.palette,
+    customTheme: structuredClone(theme.custom),
+    uiScale: prefs.scale,
+    sidebarHoverOpen: sidebar.isHoverOpen,
+    sidebarDisabled: sidebar.disabled,
+    updateOnLaunch: updater.autoCheckEnabled,
+    periodicUpdates: updater.periodicCheckEnabled,
+    developerMode: prefs.developerMode,
+  }
+}
 import type {
   AppConfig,
   CaptureMode,
@@ -85,6 +121,8 @@ export function Settings() {
   const stored = useConfigStore((s) => s.config)
   const setStored = useConfigStore((s) => s.setConfig)
   const [draft, setDraft] = useState<AppConfig | null>(stored)
+  const [savedUi, setSavedUi] = useState<SettingsUiDraft>(() => currentUiSettings(i18n.language))
+  const [uiDraft, setUiDraft] = useState<SettingsUiDraft>(() => currentUiSettings(i18n.language))
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   // Riichi City autoplay is MITM frame injection — pop a risk warning the
@@ -107,7 +145,9 @@ export function Settings() {
     }
   }, [stored, setStored])
 
-  const changes = draft && stored ? countChangedSettings(draft, stored) : 0
+  const changes = draft && stored
+    ? countChangedSettings(draft, stored) + countChangedSettings(uiDraft, savedUi)
+    : 0
   const dirty = changes > 0
 
   // Changes waiting lock the rest of the app (`SettingsLock`) until they are
@@ -150,6 +190,20 @@ export function Settings() {
     try {
       await invoke('update_config', { newConfig: draft })
       setStored(draft)
+      if (i18n.language !== uiDraft.language) await i18n.changeLanguage(uiDraft.language)
+      const theme = useThemeStore.getState()
+      theme.setMode(uiDraft.themeMode)
+      theme.setCustom(structuredClone(uiDraft.customTheme))
+      theme.setPalette(uiDraft.themePalette)
+      useUiPrefsStore.getState().setScale(uiDraft.uiScale)
+      useUiPrefsStore.getState().setDeveloperMode(uiDraft.developerMode)
+      useSidebar.getState().setSettings({
+        isHoverOpen: uiDraft.sidebarHoverOpen,
+        disabled: uiDraft.sidebarDisabled,
+      })
+      useUpdaterStore.getState().setAutoCheckEnabled(uiDraft.updateOnLaunch)
+      useUpdaterStore.getState().setPeriodicCheckEnabled(uiDraft.periodicUpdates)
+      setSavedUi(structuredClone(uiDraft))
       dailyLimit.check(draft)
     } catch (e) {
       setErr(String(e))
@@ -161,6 +215,7 @@ export function Settings() {
   const cancel = () => {
     setErr(null)
     setDraft(stored)
+    setUiDraft(structuredClone(savedUi))
   }
 
   return (
@@ -179,14 +234,12 @@ export function Settings() {
           <CardTitle>{t('settings.general')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {/* Language applies instantly and self-persists to localStorage via
-              i18next, mirroring the setup wizard and the sidebar switcher.
-              It is intentionally decoupled from the config draft/save flow —
-              nothing reads config.general.language to drive the UI language. */}
+          {/* Language is a frontend preference, but follows the same explicit
+              Save/Cancel transaction as the backend-owned configuration. */}
           <Field label={t('settings.language')}>
             <Select
-              value={i18n.language}
-              onValueChange={(v) => void i18n.changeLanguage(v)}
+              value={uiDraft.language}
+              onValueChange={(language) => setUiDraft({ ...uiDraft, language })}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -218,7 +271,7 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      <AppearanceCard />
+      <AppearanceCard draft={uiDraft} setDraft={setUiDraft} />
 
       <OverlayCard draft={draft} setDraft={setDraft} />
 
@@ -297,9 +350,9 @@ export function Settings() {
 
       <PrivacyCard draft={draft} setDraft={setDraft} />
 
-      <UpdatesCard />
+      <UpdatesCard draft={uiDraft} setDraft={setUiDraft} />
 
-      <AdvancedCard />
+      <AdvancedCard draft={uiDraft} setDraft={setUiDraft} />
 
       {dirty && (
         <UnsavedBar
@@ -361,8 +414,7 @@ function acknowledgeAutoplayRisk() {
 /** Everything optional that leaves the machine, in one place. Nothing here
  *  changes how a game is read or played. The game's own telemetry is
  *  `proxy.block_telemetry` (older than `[privacy]`, so it stays where
- *  existing config files have it); the update check is a frontend
- *  preference in `updaterStore`, applied immediately rather than on save. */
+ *  existing config files have it). */
 function PrivacyCard({
   draft,
   setDraft,
@@ -543,12 +595,14 @@ function OverlayCard({
   )
 }
 
-function AppearanceCard() {
+function AppearanceCard({
+  draft,
+  setDraft,
+}: {
+  draft: SettingsUiDraft
+  setDraft: (draft: SettingsUiDraft) => void
+}) {
   const { t } = useTranslation()
-  const mode = useThemeStore((s) => s.mode)
-  const palette = useThemeStore((s) => s.palette)
-  const setMode = useThemeStore((s) => s.setMode)
-  const setPalette = useThemeStore((s) => s.setPalette)
   return (
     <Card>
       <CardHeader>
@@ -556,7 +610,10 @@ function AppearanceCard() {
       </CardHeader>
       <CardContent className="grid gap-4">
         <Field label={t('settings.mode')}>
-          <Select value={mode} onValueChange={(v) => setMode(v as ThemeMode)}>
+          <Select
+            value={draft.themeMode}
+            onValueChange={(v) => setDraft({ ...draft, themeMode: v as ThemeMode })}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -570,7 +627,10 @@ function AppearanceCard() {
           </Select>
         </Field>
         <Field label={t('settings.theme')}>
-          <Select value={palette} onValueChange={(v) => setPalette(v as ThemePalette)}>
+          <Select
+            value={draft.themePalette}
+            onValueChange={(v) => setDraft({ ...draft, themePalette: v as ThemePalette })}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -583,9 +643,9 @@ function AppearanceCard() {
             </SelectContent>
           </Select>
         </Field>
-        {palette === 'custom' && <CustomEditor />}
-        <UiScaleField />
-        <SidebarHoverField />
+        {draft.themePalette === 'custom' && <CustomEditor draft={draft} setDraft={setDraft} />}
+        <UiScaleField draft={draft} setDraft={setDraft} />
+        <SidebarHoverField draft={draft} setDraft={setDraft} />
       </CardContent>
     </Card>
   )
@@ -612,12 +672,14 @@ function toHex(value: string | undefined): string {
   return `#${hex}`
 }
 
-function CustomEditor() {
+function CustomEditor({
+  draft,
+  setDraft,
+}: {
+  draft: SettingsUiDraft
+  setDraft: (draft: SettingsUiDraft) => void
+}) {
   const { t } = useTranslation()
-  const custom = useThemeStore((s) => s.custom)
-  const setCustomVar = useThemeStore((s) => s.setCustomVar)
-  const resetCustom = useThemeStore((s) => s.resetCustom)
-  const importCustom = useThemeStore((s) => s.importCustom)
   const [importInput, setImportInput] = useState('')
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
@@ -629,7 +691,14 @@ function CustomEditor() {
     setImportError(null)
     setImportSuccess(false)
     try {
-      await importCustom(importInput)
+      const imported = await loadTheme(importInput)
+      setDraft({
+        ...draft,
+        customTheme: {
+          light: { ...draft.customTheme.light, ...imported.light },
+          dark: { ...draft.customTheme.dark, ...imported.dark },
+        },
+      })
       setImportInput('')
       setImportSuccess(true)
     } catch (e) {
@@ -642,8 +711,32 @@ function CustomEditor() {
   return (
     <div className="grid gap-4 rounded-md border border-border/50 p-3">
       <p className="text-xs text-muted-foreground">{t('settings.custom_hint')}</p>
-      <CustomColorRow which="light" vars={custom.light} onChange={setCustomVar} />
-      <CustomColorRow which="dark" vars={custom.dark} onChange={setCustomVar} />
+      <CustomColorRow
+        which="light"
+        vars={draft.customTheme.light}
+        onChange={(which, name, value) =>
+          setDraft({
+            ...draft,
+            customTheme: {
+              ...draft.customTheme,
+              [which]: { ...draft.customTheme[which], [name]: value },
+            },
+          })
+        }
+      />
+      <CustomColorRow
+        which="dark"
+        vars={draft.customTheme.dark}
+        onChange={(which, name, value) =>
+          setDraft({
+            ...draft,
+            customTheme: {
+              ...draft.customTheme,
+              [which]: { ...draft.customTheme[which], [name]: value },
+            },
+          })
+        }
+      />
       <div className="grid gap-2 rounded-md border border-border/40 p-2">
         <Label className="text-sm">{t('settings.custom_import')}</Label>
         <span className="text-xs text-muted-foreground">
@@ -683,7 +776,19 @@ function CustomEditor() {
         </div>
       </div>
       <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={resetCustom}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            setDraft({
+              ...draft,
+              customTheme: {
+                light: { ...DEFAULT_CUSTOM_LIGHT },
+                dark: { ...DEFAULT_CUSTOM_DARK },
+              },
+            })
+          }
+        >
           {t('settings.custom_reset')}
         </Button>
       </div>
@@ -770,12 +875,15 @@ function BotDirPath({ dir }: { dir: string }) {
   return <Input value={path} readOnly className="font-mono text-xs" />
 }
 
-/** Advanced: developer mode, which shows the log page in the sidebar. A UI
- *  preference, applied at once like the sidebar options. */
-function AdvancedCard() {
+/** Advanced: developer mode, which shows the log page in the sidebar. */
+function AdvancedCard({
+  draft,
+  setDraft,
+}: {
+  draft: SettingsUiDraft
+  setDraft: (draft: SettingsUiDraft) => void
+}) {
   const { t } = useTranslation()
-  const developerMode = useUiPrefsStore((s) => s.developerMode)
-  const setDeveloperMode = useUiPrefsStore((s) => s.setDeveloperMode)
   return (
     <Card>
       <CardHeader>
@@ -785,30 +893,33 @@ function AdvancedCard() {
         <Toggle
           label={t('settings.advanced.developer_mode')}
           hint={t('settings.advanced.developer_mode_hint')}
-          value={developerMode}
-          onChange={setDeveloperMode}
+          value={draft.developerMode}
+          onChange={(developerMode) => setDraft({ ...draft, developerMode })}
         />
       </CardContent>
     </Card>
   )
 }
 
-function SidebarHoverField() {
+function SidebarHoverField({
+  draft,
+  setDraft,
+}: {
+  draft: SettingsUiDraft
+  setDraft: (draft: SettingsUiDraft) => void
+}) {
   const { t } = useTranslation()
-  const isHoverOpen = useSidebar((s) => s.settings.isHoverOpen)
-  const disabled = useSidebar((s) => s.settings.disabled)
-  const setSettings = useSidebar((s) => s.setSettings)
   return (
     <div className="grid gap-1.5">
       <Toggle
         label={t('settings.appearance_sidebar_peek')}
-        value={isHoverOpen}
-        onChange={(v) => setSettings({ isHoverOpen: v })}
+        value={draft.sidebarHoverOpen}
+        onChange={(sidebarHoverOpen) => setDraft({ ...draft, sidebarHoverOpen })}
       />
       <Toggle
         label={t('settings.appearance_hide_sidebar')}
-        value={disabled}
-        onChange={(v) => setSettings({ disabled: v })}
+        value={draft.sidebarDisabled}
+        onChange={(sidebarDisabled) => setDraft({ ...draft, sidebarDisabled })}
       />
       <span className="text-xs text-muted-foreground">
         {t('settings.appearance_sidebar_hint')}
@@ -817,12 +928,15 @@ function SidebarHoverField() {
   )
 }
 
-function UiScaleField() {
+function UiScaleField({
+  draft,
+  setDraft,
+}: {
+  draft: SettingsUiDraft
+  setDraft: (draft: SettingsUiDraft) => void
+}) {
   const { t } = useTranslation()
-  const scale = useUiPrefsStore((s) => s.scale)
-  const setScale = useUiPrefsStore((s) => s.setScale)
-  const resetScale = useUiPrefsStore((s) => s.resetScale)
-  const pct = Math.round(scale * 100)
+  const pct = Math.round(draft.uiScale * 100)
   return (
     <div className="grid gap-1.5">
       <div className="flex items-center justify-between">
@@ -832,8 +946,8 @@ function UiScaleField() {
           <Button
             variant="outline"
             size="sm"
-            onClick={resetScale}
-            disabled={scale === SCALE_DEFAULT}
+            onClick={() => setDraft({ ...draft, uiScale: SCALE_DEFAULT })}
+            disabled={draft.uiScale === SCALE_DEFAULT}
           >
             {t('common.reset')}
           </Button>
@@ -844,8 +958,8 @@ function UiScaleField() {
         min={SCALE_MIN}
         max={SCALE_MAX}
         step={SCALE_STEP}
-        value={scale}
-        onChange={(e) => setScale(parseFloat(e.target.value))}
+        value={draft.uiScale}
+        onChange={(e) => setDraft({ ...draft, uiScale: parseFloat(e.target.value) })}
         className="w-full accent-primary"
         aria-label={t('settings.ui_scale')}
       />
@@ -1841,13 +1955,15 @@ function CftPanel({
   )
 }
 
-function UpdatesCard() {
+function UpdatesCard({
+  draft,
+  setDraft,
+}: {
+  draft: SettingsUiDraft
+  setDraft: (draft: SettingsUiDraft) => void
+}) {
   const { t, i18n } = useTranslation()
   const lastChecked = useUpdaterStore((s) => s.lastChecked)
-  const autoCheckEnabled = useUpdaterStore((s) => s.autoCheckEnabled)
-  const setAutoCheckEnabled = useUpdaterStore((s) => s.setAutoCheckEnabled)
-  const periodicCheckEnabled = useUpdaterStore((s) => s.periodicCheckEnabled)
-  const setPeriodicCheckEnabled = useUpdaterStore((s) => s.setPeriodicCheckEnabled)
 
   const lastCheckedLabel = lastChecked
     ? t('updates.settings.last_checked', {
@@ -1855,7 +1971,6 @@ function UpdatesCard() {
       })
     : t('updates.settings.never_checked')
 
-  // Both switches apply at once, like the other app-wide preferences.
   return (
     <Card>
       <CardHeader>
@@ -1865,14 +1980,14 @@ function UpdatesCard() {
         <Toggle
           label={t('updates.settings.auto_check')}
           hint={t('updates.settings.auto_check_hint')}
-          value={autoCheckEnabled}
-          onChange={setAutoCheckEnabled}
+          value={draft.updateOnLaunch}
+          onChange={(updateOnLaunch) => setDraft({ ...draft, updateOnLaunch })}
         />
         <Toggle
           label={t('updates.settings.periodic_check')}
           hint={t('updates.settings.periodic_check_hint')}
-          value={periodicCheckEnabled}
-          onChange={setPeriodicCheckEnabled}
+          value={draft.periodicUpdates}
+          onChange={(periodicUpdates) => setDraft({ ...draft, periodicUpdates })}
         />
         <span className="text-xs text-muted-foreground">{lastCheckedLabel}</span>
       </CardContent>

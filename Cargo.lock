@@ -3146,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "mokora"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3216,6 +3216,7 @@ dependencies = [
  "webkit2gtk",
  "webkit2gtk-sys",
  "which",
+ "windows 0.61.3",
  "x509-parser",
  "zip 8.6.0",
 ]

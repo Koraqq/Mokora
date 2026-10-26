@@ -75,14 +75,14 @@ export type ShadcnVar = (typeof SHADCN_VARS)[number]
 export type CustomVarsMap = Partial<Record<ShadcnVar, string>>
 export type CustomTheme = { light: CustomVarsMap; dark: CustomVarsMap }
 
-const DEFAULT_CUSTOM_LIGHT: CustomVarsMap = {
+export const DEFAULT_CUSTOM_LIGHT: CustomVarsMap = {
   background: '#fafafa',
   foreground: '#111111',
   primary: '#0a7d52',
   'primary-foreground': '#ffffff',
   border: '#d4d4d4',
 }
-const DEFAULT_CUSTOM_DARK: CustomVarsMap = {
+export const DEFAULT_CUSTOM_DARK: CustomVarsMap = {
   background: '#0f1a1c',
   foreground: '#f0f5f3',
   primary: '#34d399',
@@ -99,6 +99,7 @@ type ThemeStore = {
   custom: CustomTheme
   setMode: (mode: ThemeMode) => void
   setPalette: (palette: ThemePalette) => void
+  setCustom: (custom: CustomTheme) => void
   setCustomVar: (mode: 'light' | 'dark', name: CustomBaseVar, value: string) => void
   resetCustom: () => void
   /**
@@ -305,7 +306,7 @@ function normalizeThemeUrl(input: string): string {
   return raw
 }
 
-async function loadTheme(input: string): Promise<CustomTheme> {
+export async function loadTheme(input: string): Promise<CustomTheme> {
   const trimmed = input.trim()
   if (!trimmed) throw new Error('No input')
   let data: unknown
@@ -335,6 +336,11 @@ export const useThemeStore = create(
         set({ palette })
         const s = get()
         applyTheme(s.mode, palette, s.custom)
+      },
+      setCustom: (custom) => {
+        set({ custom })
+        const s = get()
+        applyTheme(s.mode, s.palette, custom)
       },
       setCustomVar: (which, name, value) => {
         const prev = get().custom

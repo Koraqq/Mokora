@@ -69,6 +69,24 @@ fn entry_to_info(e: &BotEntry) -> BotInfo {
 
 type CmdResult<T> = Result<T, String>;
 
+/// Publish a frontend-originated toast through the same account bus as backend
+/// notifications. The notification forwarder fans it out to every account UI.
+#[tauri::command]
+pub fn publish_notification(mut notification: Notification, state: Acct) -> CmdResult<()> {
+    crate::ipc::ensure_notification_id(&mut notification);
+    state
+        .notify_bus
+        .send(notification)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Mirror a user's toast close action to every account interface.
+#[tauri::command]
+pub fn dismiss_notification(id: String, app: AppHandle) -> CmdResult<()> {
+    app.emit("notify-dismiss", id).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn get_config(state: Acct) -> CmdResult<AppConfig> {
     Ok(state.config.read().await.clone())
@@ -1752,19 +1770,26 @@ pub async fn check_for_update(
     if !manual && crate::updater::reminders::muted() {
         return Ok(None);
     }
-    // The every-few-minutes check keeps out of the way: not while a game is
-    // played, and never in full auto (the prompt would wait on a player who
-    // is not there).
-    if periodic == Some(true) && (hub.any_in_game().await || hub.any_full_auto().await) {
+    // Every automatic check keeps out of the way while any account is playing.
+    // The frontend also guards this, but the backend owns the authoritative
+    // state and closes the race where a game starts as the request is sent.
+    if !manual && hub.any_in_game().await {
         return Ok(None);
     }
     let Ok(_guard) = state.updater_lock.try_lock() else {
         return Err("an update check is already in progress".into());
     };
     let net = state.config.read().await.network.clone();
-    crate::updater::check_for_update(UPSTREAM_REPO, &net)
+    let update = crate::updater::check_for_update(UPSTREAM_REPO, &net)
         .await
-        .map_err(|e| format!("check for update: {e:#}"))
+        .map_err(|e| format!("check for update: {e:#}"))?;
+    // A game may have started while GitHub was answering. Hold the prompt;
+    // the last-game-ended transition immediately performs a fresh check.
+    if !manual && hub.any_in_game().await {
+        return Ok(None);
+    }
+    let _ = periodic; // retained for compatibility with released frontends
+    Ok(update)
 }
 
 /// "Update": download the latest release's package, start installing it,
@@ -2056,6 +2081,8 @@ fn persist_config(config: &AppConfig, path: &Path) -> std::io::Result<()> {
 macro_rules! ipc_handlers {
     () => {
         ::tauri::generate_handler![
+            $crate::ipc::commands::publish_notification,
+            $crate::ipc::commands::dismiss_notification,
             $crate::ipc::commands::get_config,
             $crate::ipc::commands::update_config,
             $crate::ipc::commands::set_overlay_enabled,

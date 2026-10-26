@@ -62,6 +62,25 @@ export type AnnouncementEntry = {
  */
 export const ANNOUNCEMENTS: AnnouncementEntry[] = [
   {
+    id: 'v0_1_1',
+    date: '2026-10-26',
+    version: '0.1.1',
+    notes: {
+      added: ['member_multi_screen', 'info_panel_side', 'discord_link'],
+      fixed: [
+        'account_switch_stuck',
+        'toolbar_flicker',
+        'toolbar_layer',
+        'membership_switch',
+        'long_run_freeze',
+        'dialog_partial',
+        'settings_save',
+        'resource_saving_stuck',
+      ],
+      planned: ['linux_0_1_2', 'appearance_settings'],
+    },
+  },
+  {
     id: 'v0_1_0',
     date: '2026-10-23',
     version: '0.1.0',

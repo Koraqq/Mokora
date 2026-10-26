@@ -5,8 +5,10 @@
 //! - **Outbound (backend → frontend)**: forwarder tasks subscribe to each of an
 //!   account's `event_bus` channels and emit the payload to that account's
 //!   interface (and to the overlay while the account is the shown one) — see
-//!   [`Route`]. Status buses additionally mirror the latest value into
-//!   `AppState` so a fresh frontend can ask `get_status` for a snapshot.
+//!   [`Route`]. Notifications are the exception: they are application-level
+//!   UI state and are broadcast to every account interface. Status buses also
+//!   mirror the latest value into `AppState` so a fresh frontend can ask
+//!   `get_status` for a snapshot.
 //! - **Inbound (frontend → backend)**: `#[tauri::command]` handlers in
 //!   [`commands`]; register them via the `ipc_handlers!()` macro on the
 //!   `tauri::Builder`. A command takes [`crate::hub::Acct`] to get the state of
@@ -25,9 +27,10 @@
 //! | `history-recorded` | `schema::HistoryEvent`        |
 //! | `overlay-config`   | `config::OverlayConfig`       |
 //!
-//! All of the above go to the account's own interface, and to the [`overlay`]
-//! window while that account is the shown one. `overlay-config` is emitted to
-//! the overlay label only; `accounts-changed` goes to every interface.
+//! All account-scoped events go to the account's own interface, and to the
+//! [`overlay`] window while that account is shown. `notify` and
+//! `accounts-changed` go to every interface; `overlay-config` goes only to the
+//! overlay label.
 
 pub mod capture_supervisor;
 pub mod commands;
@@ -36,12 +39,26 @@ pub mod state;
 
 pub use state::{AppState, Shared};
 
+use crate::schema::Notification;
 use serde::Serialize;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use tauri::async_runtime::JoinHandle;
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::sync::broadcast;
 use tracing::warn;
+
+static NEXT_NOTIFICATION_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Give every toast a process-wide identity before it is broadcast. Producers
+/// may provide a stable id for progress updates; one-shot notifications get a
+/// generated id so dismissing them can be mirrored across every account UI.
+pub(crate) fn ensure_notification_id(notification: &mut Notification) {
+    if notification.id.is_none() {
+        let id = NEXT_NOTIFICATION_ID.fetch_add(1, Ordering::Relaxed);
+        notification.id = Some(format!("mokora-notify-{id}"));
+    }
+}
 
 /// Where one account's events go: its own interface, plus the overlay while it
 /// is the account the window shows.
@@ -104,12 +121,7 @@ pub fn install_account<R: Runtime>(
             state.bot_response_bus.subscribe(),
             "bot-response",
         ),
-        forward(
-            app.clone(),
-            route.clone(),
-            state.notify_bus.subscribe(),
-            "notify",
-        ),
+        forward_notifications(app.clone(), state.notify_bus.subscribe()),
         forward(
             app.clone(),
             route.clone(),
@@ -127,6 +139,31 @@ pub fn install_account<R: Runtime>(
         spawn_next_game_status_forwarder(app.clone(), route.clone(), state.clone()),
         spawn_capture_status_forwarder(app.clone(), route, state.clone()),
     ]
+}
+
+/// Notifications are application-level UI state, not account-local game
+/// state. Broadcast each account's notification to every webview so all
+/// account interfaces show the same toast and can dismiss it together.
+fn forward_notifications<R: Runtime>(
+    app: AppHandle<R>,
+    mut rx: broadcast::Receiver<Notification>,
+) -> JoinHandle<()> {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            match rx.recv().await {
+                Ok(mut notification) => {
+                    ensure_notification_id(&mut notification);
+                    if let Err(e) = app.emit("notify", notification) {
+                        warn!("ipc broadcast notify failed: {e}");
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    warn!("ipc forwarder notify lagged by {n}");
+                }
+                Err(broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    })
 }
 
 /// The next-game flow's status is a `watch` (it is its own snapshot): emit
@@ -219,6 +256,17 @@ fn spawn_capture_status_forwarder<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn notification_ids_are_added_once_and_preserved() {
+        let mut generated = Notification::info("hello");
+        ensure_notification_id(&mut generated);
+        assert!(generated.id.as_deref().is_some_and(|id| !id.is_empty()));
+
+        let mut stable = Notification::warn("warning").id("stable");
+        ensure_notification_id(&mut stable);
+        assert_eq!(stable.id.as_deref(), Some("stable"));
+    }
 
     /// The overlay follows the shown account, so a route is "active" exactly
     /// while its account is the one the hub says is shown.

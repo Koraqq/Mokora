@@ -946,7 +946,7 @@
       "available": "Update available: {{version}}",
       "auto_check_hint": "When Mokora starts, it checks for a new version and asks whether to update.",
       "periodic_check": "Check for updates automatically",
-      "periodic_check_hint": "Checks every 5 minutes while no game is being played. Never checks in full auto."
+      "periodic_check_hint": "Checks every 3 minutes while no account is in a game; checks immediately after the last active game ends."
     }
   },
   "announcements": {
@@ -954,6 +954,7 @@
       "title": "Announcements",
       "intro": "Release highlights and news from Mokora.",
       "got_it": "Got it",
+      "discord_purchase": "Join Discord to purchase a membership!",
       "settings_button": "Announcements",
       "section_added": "Added",
       "section_removed": "Removed",
@@ -962,6 +963,22 @@
       "section_planned": "Planned"
     },
     "entries": {
+      "v0_1_1": {
+        "title": "Multi-screen controls and stability update",
+        "member_multi_screen": "[Members only] Added multi-screen mode.",
+        "info_panel_side": "The information panel can now be placed on the left or right.",
+        "discord_link": "Added a Discord link to announcements for membership purchases and feedback.",
+        "account_switch_stuck": "Fixed account switching becoming unresponsive.",
+        "toolbar_flicker": "Fixed toolbar flickering.",
+        "toolbar_layer": "Fixed toolbar menus being covered by the game view.",
+        "membership_switch": "Fixed issues when switching membership status.",
+        "long_run_freeze": "Fixed the interface becoming unresponsive after running for a long time.",
+        "dialog_partial": "Fixed announcements and other dialogs briefly appearing incomplete.",
+        "settings_save": "Changed settings to use a unified save mechanism.",
+        "resource_saving_stuck": "Fixed resource-saving mode becoming stuck.",
+        "linux_0_1_2": "Linux support is planned for v0.1.2.",
+        "appearance_settings": "Appearance and interaction settings will be improved."
+      },
       "v0_1_0": {
         "title": "Mahjong Soul AI bot",
         "live_info": "Live game information",

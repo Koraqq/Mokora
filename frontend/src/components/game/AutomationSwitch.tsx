@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bot, ChevronRight, Lock, PowerOff, Repeat } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/sonner'
 
 import { Button } from '@/components/ui/button'
 import {

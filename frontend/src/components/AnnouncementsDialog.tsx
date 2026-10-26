@@ -11,7 +11,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { openExternal } from '@/lib/external'
+import { DiscordMark } from '@/components/DiscordMark'
+import { MOKORA_DISCORD_URL, openExternal } from '@/lib/external'
 import { cn } from '@/lib/utils'
 import { NOTE_SECTIONS, type AnnouncementEntry } from '@/announcements/entries'
 import { getAppVersion } from '@/lib/appVersion'
@@ -64,7 +65,10 @@ export function AnnouncementsDialog() {
       {/* Wider than the standard dialogs to fit screenshots and two-column
           feature grids. One fixed height whatever is open: the middle grid
           row scrolls, and the dialog never grows past the window. */}
-      <DialogContent className="sm:max-w-4xl h-[min(28rem,85vh)] grid-rows-[auto_minmax(0,1fr)_auto]">
+      <DialogContent
+        data-native-blur
+        className="sm:max-w-4xl h-[min(28rem,85vh)] grid-rows-[auto_minmax(0,1fr)_auto]"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-baseline gap-3 pr-8">
             {t('announcements.dialog.title')}
@@ -85,7 +89,15 @@ export function AnnouncementsDialog() {
             "newest only" without effect-driven state syncing. */}
         <AnnouncementList key={entries.map((e) => e.id).join('|')} entries={entries} />
 
-        <DialogFooter className="bg-transparent p-0 border-0 mx-0 mb-0 flex-wrap gap-2">
+        <DialogFooter className="bg-transparent p-0 border-0 mx-0 mb-0 flex-row items-center justify-between gap-2 sm:justify-between">
+          <button
+            type="button"
+            onClick={() => openExternal(MOKORA_DISCORD_URL)}
+            className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <DiscordMark className="size-4 shrink-0" />
+            <span>{t('announcements.dialog.discord_purchase')}</span>
+          </button>
           <Button size="sm" onClick={close}>
             {t('announcements.dialog.got_it')}
           </Button>

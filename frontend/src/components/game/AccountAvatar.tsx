@@ -15,7 +15,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, ImagePlus, Loader2, Lock, Trash2, UserMinus, UserPlus } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -254,38 +254,46 @@ export function AccountAvatar() {
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           {t('play.account.title')}
         </DropdownMenuLabel>
-        {byRecentLogin(accounts).map((a) => (
-          <DropdownMenuItem
-            key={a.id}
-            onSelect={(e) => {
-              // In delete mode a press asks to delete instead of switching.
-              if (deleting) {
-                e.preventDefault()
-                if (!a.current) askDelete(a)
-                return
-              }
-              void pick(a)
-            }}
-            className="gap-2.5 transition-colors duration-150"
-          >
-            <Face a={a} initial={initial(a)} size="h-6 w-6 text-[11px]" />
-            <span className="min-w-0 flex-1 truncate">{name(a)}</span>
-            {deleting && !a.current ? (
-              <Trash2
-                className="h-3.5 w-3.5 text-destructive"
-                aria-label={t('sidebar.account.delete_row')}
-              />
-            ) : busy === a.id ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : a.current ? (
-              <Check className="h-3.5 w-3.5 text-primary" />
-            ) : a.locked ? (
-              <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label={t('license.pro_accounts')} />
-            ) : (
-              <span className={cn('h-1.5 w-1.5 rounded-full', TONE_DOT[tone(a)])} />
-            )}
-          </DropdownMenuItem>
-        ))}
+        <div
+          data-account-switch-list
+          className="max-h-40 overflow-y-auto overscroll-contain scroll-smooth"
+        >
+          {byRecentLogin(accounts).map((a) => (
+            <DropdownMenuItem
+              key={a.id}
+              onSelect={(e) => {
+                // In delete mode a press asks to delete instead of switching.
+                if (deleting) {
+                  e.preventDefault()
+                  if (!a.current) askDelete(a)
+                  return
+                }
+                void pick(a)
+              }}
+              className="gap-2.5 transition-colors duration-150"
+            >
+              <Face a={a} initial={initial(a)} size="h-6 w-6 text-[11px]" />
+              <span className="min-w-0 flex-1 truncate">{name(a)}</span>
+              {deleting && !a.current ? (
+                <Trash2
+                  className="h-3.5 w-3.5 text-destructive"
+                  aria-label={t('sidebar.account.delete_row')}
+                />
+              ) : busy === a.id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : a.current ? (
+                <Check className="h-3.5 w-3.5 text-primary" />
+              ) : a.locked ? (
+                <Lock
+                  className="h-3.5 w-3.5 text-muted-foreground"
+                  aria-label={t('license.pro_accounts')}
+                />
+              ) : (
+                <span className={cn('h-1.5 w-1.5 rounded-full', TONE_DOT[tone(a)])} />
+              )}
+            </DropdownMenuItem>
+          ))}
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => fileInput.current?.click()} className="gap-2.5">
           {busy === 'avatar' ? (

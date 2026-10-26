@@ -14,7 +14,7 @@ export type UpdateInfo = {
 }
 
 /// How often the periodic check asks, when it is on.
-export const PERIODIC_CHECK_MS = 5 * 60 * 1000
+export const PERIODIC_CHECK_MS = 3 * 60 * 1000
 
 /// Frontend-only persisted state. "Don't remind me again" is not here: it
 /// is one choice for every account, so the Rust side keeps it

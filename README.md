@@ -6,7 +6,9 @@
 
 <p align="center">
   A real-time Mahjong Soul assistant with a built-in AI model.<br/>
-  <a href="./README.zh-TW.md">繁體中文</a>
+  <a href="./README.zh-TW.md">繁體中文</a><br/>
+  <a href="./README.ja.md">日本語</a><br/>
+  <a href="https://discord.gg/Ta6bqH6NwN">Discord</a>
 </p>
 
 ---

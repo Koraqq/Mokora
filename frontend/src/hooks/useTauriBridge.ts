@@ -23,7 +23,7 @@ import { useNotifyStore } from '@/stores/notifyStore'
 import { useInstallStore } from '@/stores/installStore'
 import { useConfigStore } from '@/stores/configStore'
 import { useHistoryStore } from '@/stores/historyStore'
-import { toast, type ToastSeverity } from '@/components/ui/sonner'
+import { dismissToastLocally, showToast, type ToastSeverity } from '@/components/ui/sonner'
 
 // Backend `Notification.level` ∈ {info,success,warn,error}; toast helper
 // uses `warning`. Map across.
@@ -152,11 +152,15 @@ export function useTauriBridge() {
       if (n.id && (n.id.startsWith('bot-install-') || n.id.startsWith('bot-sync-'))) {
         useInstallStore.getState().setProgress(n)
       }
-      toast[TOAST_SEVERITY[n.level]](n.title, {
+      showToast(TOAST_SEVERITY[n.level], n.title, {
         description: n.body,
         id: n.id,
         ...(n.sticky ? { duration: Infinity } : {}),
       })
+    }).then((u) => unlistens.push(u))
+
+    listen<string>('notify-dismiss', (id) => {
+      dismissToastLocally(id)
     }).then((u) => unlistens.push(u))
 
     return () => {

@@ -138,3 +138,39 @@ describe('AccountAvatar under the free limit', () => {
     expect(invoke).not.toHaveBeenCalledWith('switch_account', { id: '3' })
   })
 })
+
+describe('AccountAvatar account list', () => {
+  beforeEach(() => {
+    invoke.mockReset()
+    invoke.mockResolvedValue(undefined)
+    features = ['pro']
+    accounts = [
+      account('main', true),
+      account('2', false),
+      account('3', false),
+      account('4', false),
+      account('5', false),
+      account('6', false),
+    ]
+  })
+
+  it('keeps at most five account rows visible and leaves management actions fixed below', () => {
+    render(<AccountAvatar />)
+    fireEvent.pointerDown(screen.getByTitle('Mine'), {
+      button: 0,
+      ctrlKey: false,
+      pointerType: 'mouse',
+    })
+
+    const list = document.querySelector('[data-account-switch-list]')
+    expect(list).toBeTruthy()
+    expect(list?.classList.contains('max-h-40')).toBe(true)
+    expect(list?.classList.contains('overflow-y-auto')).toBe(true)
+    expect(list?.classList.contains('overscroll-contain')).toBe(true)
+    expect(list?.classList.contains('scroll-smooth')).toBe(true)
+    expect(list?.querySelectorAll('[data-slot="dropdown-menu-item"]')).toHaveLength(6)
+    expect(list?.contains(screen.getByText('play.account.change_avatar'))).toBe(false)
+    expect(list?.contains(screen.getByText('sidebar.account.add'))).toBe(false)
+    expect(list?.contains(screen.getByText('sidebar.account.delete'))).toBe(false)
+  })
+})

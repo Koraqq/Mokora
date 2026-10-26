@@ -962,7 +962,7 @@
       "none_skipped": "なし",
       "auto_check_hint": "Mokora の起動時に新しいバージョンを確認し、あれば更新するか尋ねます。",
       "periodic_check": "自動で更新を確認",
-      "periodic_check_hint": "対局していない間、5 分ごとに確認します。全自動モードでは確認しません。"
+      "periodic_check_hint": "どのアカウントも対局中でない場合は 3 分ごとに確認し、最後の対局が終了するとすぐに確認します。"
     }
   },
   "announcements": {
@@ -970,6 +970,7 @@
       "title": "お知らせ",
       "intro": "Mokora の更新情報とお知らせ。",
       "got_it": "OK",
+      "discord_purchase": "メンバーシップの購入は Discord へ！",
       "settings_button": "お知らせ",
       "section_added": "追加",
       "section_removed": "削除",
@@ -978,6 +979,22 @@
       "section_planned": "今後の予定"
     },
     "entries": {
+      "v0_1_1": {
+        "title": "マルチ画面操作と安定性のアップデート",
+        "member_multi_screen": "［メンバー限定］マルチ画面操作モードを追加しました。",
+        "info_panel_side": "情報パネルを左側または右側に配置できるようになりました。",
+        "discord_link": "会員購入やご意見の受付に便利な Discord リンクをお知らせに追加しました。",
+        "account_switch_stuck": "アカウント切り替え時に操作不能になる問題を修正しました。",
+        "toolbar_flicker": "ツールバーがちらつく問題を修正しました。",
+        "toolbar_layer": "ツールバーのメニューがゲーム画面に隠れることがある問題を修正しました。",
+        "membership_switch": "会員状態の切り替えに関する問題を修正しました。",
+        "long_run_freeze": "長時間の実行後に応答しなくなる問題を修正しました。",
+        "dialog_partial": "お知らせやその他のダイアログが一瞬不完全に表示される問題を修正しました。",
+        "settings_save": "設定を一括保存する仕組みに変更しました。",
+        "resource_saving_stuck": "省リソースモードが停止したままになる問題を修正しました。",
+        "linux_0_1_2": "v0.1.2 で Linux 版を公開予定です。",
+        "appearance_settings": "外観と操作設定を改善する予定です。"
+      },
       "v0_1_0": {
         "title": "雀魂 AI 麻雀ボット",
         "live_info": "情報をリアルタイム表示",

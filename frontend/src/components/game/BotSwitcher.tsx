@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bot, Check, ChevronRight, Lock } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/sonner'
 
 import { useLicense } from '@/hooks/useLicense'
 import { useProStatus } from '@/hooks/useProStatus'

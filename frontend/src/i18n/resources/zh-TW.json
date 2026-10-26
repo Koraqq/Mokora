@@ -946,7 +946,7 @@
       "available": "有可用更新：{{version}}",
       "auto_check_hint": "開啟 Mokora 時檢查有沒有新版本，有的話會詢問是否更新。",
       "periodic_check": "自動檢查更新",
-      "periodic_check_hint": "沒有對局時每 5 分鐘檢查一次；全自動模式下不會檢查。"
+      "periodic_check_hint": "沒有帳號正在對局時，每 3 分鐘檢查一次；若正在對局，將於最後一場對局結束後立即檢查。"
     }
   },
   "announcements": {
@@ -954,6 +954,7 @@
       "title": "公告",
       "intro": "Mokora 的更新重點與消息。",
       "got_it": "知道了",
+      "discord_purchase": "購買會員請加入 Discord！",
       "settings_button": "公告",
       "section_added": "新增",
       "section_removed": "移除",
@@ -962,6 +963,22 @@
       "section_planned": "預計更新"
     },
     "entries": {
+      "v0_1_1": {
+        "title": "多螢幕操作與穩定性更新",
+        "member_multi_screen": "[會員專屬] 新增多螢幕操作模式。",
+        "info_panel_side": "可調整資訊欄為左側或右側。",
+        "discord_link": "公告新增 Discord 連結，方便購買會員和提供意見。",
+        "account_switch_stuck": "修正帳號切換會卡住的問題。",
+        "toolbar_flicker": "修正工具欄會閃爍的問題。",
+        "toolbar_layer": "修正工具欄選單可能被遊戲畫面遮擋的問題。",
+        "membership_switch": "修正會員切換的問題。",
+        "long_run_freeze": "修正長時間執行後停止回應的問題。",
+        "dialog_partial": "修正公告及其他對話框短暫顯示不完整的問題。",
+        "settings_save": "修正設定為統一儲存的機制。",
+        "resource_saving_stuck": "修正節省資源模式會卡住的問題。",
+        "linux_0_1_2": "v0.1.2 將推出 Linux 版本。",
+        "appearance_settings": "將會優化外觀操作設定。"
+      },
       "v0_1_0": {
         "title": "雀魂 AI 打牌機器人",
         "live_info": "即時顯示資訊",

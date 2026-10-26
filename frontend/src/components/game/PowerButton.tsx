@@ -4,7 +4,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { Power } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/sonner'
 
 import { useAccounts } from '@/hooks/useAccounts'
 import { invoke } from '@/lib/tauri'

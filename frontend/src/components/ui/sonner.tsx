@@ -1,5 +1,8 @@
 import { Toaster as SonnerToaster, toast as sonnerToast } from 'sonner'
 
+import type { Notification } from '@/types'
+import { HAS_TAURI, invoke } from '@/lib/tauri'
+
 export type ToastSeverity = 'info' | 'success' | 'warning' | 'error'
 
 // Per-toast border color. `!` overrides the universal `* { @apply border-border }`
@@ -44,11 +47,74 @@ type NotifyOpts = {
   id?: string | number
 }
 
-function notify(severity: ToastSeverity, message: string, opts: NotifyOpts = {}) {
+const LEVEL_BY_SEVERITY: Record<ToastSeverity, Notification['level']> = {
+  info: 'info',
+  success: 'success',
+  warning: 'warn',
+  error: 'error',
+}
+
+const remotelyDismissed = new Set<string>()
+let nextLocalId = 1
+
+function idFor(opts: NotifyOpts): string {
+  return opts.id === undefined
+    ? `ui-notify-${Date.now()}-${nextLocalId++}`
+    : String(opts.id)
+}
+
+/** Render an already-broadcast notification in this webview only. */
+export function showToast(
+  severity: ToastSeverity,
+  message: string,
+  opts: NotifyOpts = {},
+) {
+  const id = idFor(opts)
   return sonnerToast(message, {
     ...opts,
+    id,
     className: SEVERITY_BORDER[severity],
+    onDismiss: () => syncToastDismissal(id),
   })
+}
+
+/** Broadcast a close-button/swipe dismissal unless it came from another UI. */
+export function syncToastDismissal(id: string) {
+  if (remotelyDismissed.delete(id) || !HAS_TAURI) return
+  void invoke('dismiss_notification', { id })
+}
+
+/** Close a toast in this webview without re-broadcasting the close event. */
+export function dismissToastLocally(id: string) {
+  remotelyDismissed.add(id)
+  sonnerToast.dismiss(id)
+}
+
+function notify(severity: ToastSeverity, message: string, opts: NotifyOpts = {}) {
+  const id = idFor(opts)
+  if (!HAS_TAURI) return showToast(severity, message, { ...opts, id })
+
+  const notification: Notification = {
+    level: LEVEL_BY_SEVERITY[severity],
+    title: message,
+    body: opts.description,
+    sticky: opts.duration === Infinity,
+    id,
+  }
+  void invoke('publish_notification', { notification }).catch(() => {
+    showToast(severity, message, { ...opts, id })
+  })
+  return id
+}
+
+function dismiss(id?: string | number) {
+  if (id === undefined) return sonnerToast.dismiss()
+  const normalized = String(id)
+  if (!HAS_TAURI) return sonnerToast.dismiss(normalized)
+  void invoke('dismiss_notification', { id: normalized }).catch(() => {
+    sonnerToast.dismiss(normalized)
+  })
+  return normalized
 }
 
 export const toast = {
@@ -56,5 +122,5 @@ export const toast = {
   success: (msg: string, opts?: NotifyOpts) => notify('success', msg, opts),
   warning: (msg: string, opts?: NotifyOpts) => notify('warning', msg, opts),
   error: (msg: string, opts?: NotifyOpts) => notify('error', msg, opts),
-  dismiss: sonnerToast.dismiss,
+  dismiss,
 }

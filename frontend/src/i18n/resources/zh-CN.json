@@ -946,7 +946,7 @@
       "available": "有可用更新：{{version}}",
       "auto_check_hint": "打开 Mokora 时检查有没有新版本，有的话会询问是否更新。",
       "periodic_check": "自动检查更新",
-      "periodic_check_hint": "没有对局时每 5 分钟检查一次；全自动模式下不会检查。"
+      "periodic_check_hint": "没有账号正在对局时，每 3 分钟检查一次；若正在对局，将在最后一场对局结束后立即检查。"
     }
   },
   "announcements": {
@@ -954,6 +954,7 @@
       "title": "公告",
       "intro": "Mokora 的更新重点与消息。",
       "got_it": "知道了",
+      "discord_purchase": "购买会员请加入 Discord！",
       "settings_button": "公告",
       "section_added": "新增",
       "section_removed": "移除",
@@ -962,6 +963,22 @@
       "section_planned": "计划更新"
     },
     "entries": {
+      "v0_1_1": {
+        "title": "多屏操作与稳定性更新",
+        "member_multi_screen": "[会员专属] 新增多屏操作模式。",
+        "info_panel_side": "可将信息栏调整至左侧或右侧。",
+        "discord_link": "公告新增 Discord 链接，方便购买会员和提供意见。",
+        "account_switch_stuck": "修复账号切换会卡住的问题。",
+        "toolbar_flicker": "修复工具栏会闪烁的问题。",
+        "toolbar_layer": "修复工具栏菜单可能被游戏画面遮挡的问题。",
+        "membership_switch": "修复会员切换的问题。",
+        "long_run_freeze": "修复长时间运行后停止响应的问题。",
+        "dialog_partial": "修复公告及其他对话框短暂显示不完整的问题。",
+        "settings_save": "修复设置为统一保存的机制。",
+        "resource_saving_stuck": "修复节省资源模式会卡住的问题。",
+        "linux_0_1_2": "v0.1.2 将推出 Linux 版本。",
+        "appearance_settings": "将会优化外观操作设置。"
+      },
       "v0_1_0": {
         "title": "雀魂 AI 打牌机器人",
         "live_info": "实时显示信息",

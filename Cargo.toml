@@ -1,6 +1,6 @@
 [package]
 name = "mokora"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [lib]
@@ -95,6 +95,7 @@ machine-uid = "0.5"
 # so no crate is needed there.
 [target.'cfg(windows)'.dependencies]
 sysinfo = { version = "0.39.5", default-features = false, features = ["system"] }
+windows = { version = "0.61", features = ["Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
 
 # Linux-only: the game in Mokora's own window is a WebKitGTK view, read and
 # driven through WebKit and GTK directly (`capture::webkit`) since it has no

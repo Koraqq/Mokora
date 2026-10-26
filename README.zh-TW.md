@@ -6,7 +6,9 @@
 
 <p align="center">
   內建 AI 模型的雀魂即時輔助工具。<br/>
-  <a href="./README.md">English</a>
+  <a href="./README.md">English</a><br/>
+  <a href="./README.ja.md">日本語</a><br/>
+  <a href="https://discord.gg/Ta6bqH6NwN">Discord</a>
 </p>
 
 ---

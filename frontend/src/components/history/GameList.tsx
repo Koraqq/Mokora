@@ -9,10 +9,9 @@
 import { useMemo, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { toast } from '@/components/ui/sonner'
 import {
   Table,
   TableBody,
