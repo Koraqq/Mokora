@@ -64,25 +64,13 @@ export function UpdateDialog() {
       open={open && !announcementsOpen}
       onOpenChange={(v) => !v && !installing && dismiss()}
     >
-      <DialogContent className="max-w-xl">
+      <DialogContent data-native-passive className="max-w-xl">
         <DialogHeader>
           <DialogTitle>{t('updates.dialog.title', { version: pending.latest_version })}</DialogTitle>
           <DialogDescription>
             {installing ? t('updates.dialog.installing') : t('updates.dialog.question')}
           </DialogDescription>
         </DialogHeader>
-        {pending.body.trim() && (
-          <div className="grid gap-2 max-h-[40vh] overflow-y-auto">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              {t('updates.dialog.notes_heading')}
-            </h3>
-            {/* Plain text: the notes are short, and nothing from the
-                release metadata is rendered as markup. */}
-            <pre className="whitespace-pre-wrap break-words rounded-md border border-border bg-muted/40 p-3 text-xs leading-relaxed font-mono">
-              {pending.body.trim()}
-            </pre>
-          </div>
-        )}
         <DialogFooter className="bg-transparent p-0 border-0 mx-0 mb-0 flex-row items-center justify-between gap-2 sm:justify-between">
           <Button variant="ghost" size="sm" disabled={installing} onClick={mute}>
             {t('updates.dialog.mute')}

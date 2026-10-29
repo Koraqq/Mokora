@@ -4,7 +4,11 @@ import { act, render } from '@testing-library/react'
 const invoke = vi.hoisted(() => vi.fn().mockResolvedValue(null))
 const accountState = vi.hoisted(() => ({ inGame: false }))
 
-vi.mock('@/lib/tauri', () => ({ HAS_TAURI: true, invoke }))
+vi.mock('@/lib/tauri', () => ({
+  HAS_TAURI: true,
+  invoke,
+  listen: vi.fn(async () => () => {}),
+}))
 vi.mock('@/hooks/useAccounts', () => ({
   useAccounts: () => ({
     accounts: [{ in_game: accountState.inGame }],

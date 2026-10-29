@@ -16,6 +16,7 @@ import { MOKORA_DISCORD_URL, openExternal } from '@/lib/external'
 import { cn } from '@/lib/utils'
 import { NOTE_SECTIONS, type AnnouncementEntry } from '@/announcements/entries'
 import { getAppVersion } from '@/lib/appVersion'
+import { HAS_TAURI, listen } from '@/lib/tauri'
 import { useAnnouncementStore } from '@/stores/announcementStore'
 
 // Delay so the announcements don't pop over the very first paint; keeps
@@ -30,11 +31,10 @@ const OPEN_DELAY_MS = 1500
  * one size and the list scrolls inside it; opening a row scrolls down to
  * the end of what it opened. The running version is shown here (and only
  * here). Two ways in:
- *  - launch: after an update (or on a fresh install) it lists every
- *    bundled entry the user hasn't seen yet — skip-level updates replay
- *    all the versions in between. Any close records the newest shown
- *    entry as seen, so it shows once per new announcement.
- *  - history: Settings → Updates → "Announcements" re-opens the full list.
+ *  - launch: a new bundled entry opens the complete history after a short
+ *    delay. Any close records the newest entry as seen, so it opens once
+ *    per new announcement.
+ *  - history: Settings → Updates → "Announcements" opens that same list.
  */
 export function AnnouncementsDialog() {
   const { t } = useTranslation()
@@ -53,11 +53,44 @@ export function AnnouncementsDialog() {
   useEffect(() => {
     if (fired.current) return
     fired.current = true
-    if (!useAnnouncementStore.getState().prepareLaunch()) return
-    const timer = window.setTimeout(() => {
-      useAnnouncementStore.getState().showLaunch()
-    }, OPEN_DELAY_MS)
-    return () => window.clearTimeout(timer)
+    let live = true
+    let timer = 0
+    // What another account already showed counts: read it before deciding.
+    void useAnnouncementStore
+      .getState()
+      .hydrate()
+      .then(() => {
+        if (!live || !useAnnouncementStore.getState().prepareLaunch()) return
+        timer = window.setTimeout(() => {
+          useAnnouncementStore.getState().showLaunch()
+        }, OPEN_DELAY_MS)
+      })
+    return () => {
+      live = false
+      window.clearTimeout(timer)
+    }
+  }, [])
+
+  // A copy opened in a hidden account interface closes when any account
+  // closes the announcements.
+  useEffect(() => {
+    if (!HAS_TAURI) return
+    let live = true
+    let stop: (() => void) | undefined
+    void Promise.resolve(
+      listen<string>('announcement-seen', (date) =>
+        useAnnouncementStore.getState().seenElsewhere(date),
+      ),
+    )
+      .then((unlisten) => {
+        if (live) stop = unlisten
+        else unlisten?.()
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+      stop?.()
+    }
   }, [])
 
   return (
@@ -67,6 +100,7 @@ export function AnnouncementsDialog() {
           row scrolls, and the dialog never grows past the window. */}
       <DialogContent
         data-native-blur
+        data-native-passive
         className="sm:max-w-4xl h-[min(28rem,85vh)] grid-rows-[auto_minmax(0,1fr)_auto]"
       >
         <DialogHeader>
@@ -84,9 +118,9 @@ export function AnnouncementsDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Keyed by the shown id set: a different selection (launch unseen
-            vs full history) remounts the list, resetting expansion to
-            "newest only" without effect-driven state syncing. */}
+        {/* Keyed by the shown id set so a changed bundled history remounts
+            the list and resets expansion to "newest only" without
+            effect-driven state syncing. */}
         <AnnouncementList key={entries.map((e) => e.id).join('|')} entries={entries} />
 
         <DialogFooter className="bg-transparent p-0 border-0 mx-0 mb-0 flex-row items-center justify-between gap-2 sm:justify-between">

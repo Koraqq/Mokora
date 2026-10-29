@@ -22,6 +22,10 @@ pub struct AutoplayConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum RankRoom {
+    /// The highest room the rank allows (the ladder of the table rule picks
+    /// whose level counts). Worked out when the game is queued; it is never
+    /// a room of its own.
+    Highest,
     /// 銅之間.
     #[default]
     Bronze,

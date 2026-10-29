@@ -15,17 +15,21 @@ import { NoCoinsDialog } from '@/components/NoCoinsDialog'
 import { QuitDialog } from '@/components/QuitDialog'
 import { useEscapeToHome } from '@/hooks/useEscapeToHome'
 import { useTauriBridge } from '@/hooks/useTauriBridge'
-import { useSidebar } from '@/hooks/useSidebar'
+import { useSharedAppearance, useZoomShortcut } from '@/lib/appearance'
+import { useSidebar, useSidebarSettings } from '@/hooks/useSidebar'
 import { useUiPrefsStore } from '@/stores/uiPrefsStore'
 import { cn } from '@/lib/utils'
 
 export default function App() {
   useTauriBridge()
+  useSharedAppearance()
+  useZoomShortcut()
   useEscapeToHome()
   const location = useLocation()
   const scale = useUiPrefsStore((s) => s.scale)
   const isOpen = useSidebar((s) => s.isOpen)
-  const settings = useSidebar((s) => s.settings)
+  const ordering = useSidebar((s) => s.ordering)
+  const settings = useSidebarSettings()
 
   // Apply UI scale by adjusting :root font-size — the design system is
   // rem-based so this scales typography, spacing, icons, sidebar width
@@ -59,7 +63,7 @@ export default function App() {
   return (
     <>
       {/* Unsaved settings lock everything but the settings page itself. */}
-      <SettingsLock>
+      <SettingsLock exempt={ordering}>
         <Sidebar />
       </SettingsLock>
       <main

@@ -221,7 +221,7 @@ export function Play() {
             <BotActionTile bp="lg" />
           </div>
           <div className="shrink-0 animate-in fade-in slide-in-from-right-2 duration-500">
-            <BotShowTile bp="lg" limit={3} title={t('tile.top_discards')} row />
+            <BotShowTile bp="lg" limit={3} title={t('tile.top_discards')} />
           </div>
           {/* As tall as its rows: it does not stretch to the bottom, which is left
               free for more panels. A short window scrolls the column instead. */}

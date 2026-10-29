@@ -115,7 +115,7 @@ export type MajsoulAutoplayConfig = {
 
 /** Which ranked room the next game is queued in. Mirrors
  *  `src/config/autoplay.rs::RankRoom` (snake_case). */
-export type RankRoom = 'bronze' | 'silver' | 'gold' | 'jade' | 'throne'
+export type RankRoom = 'highest' | 'bronze' | 'silver' | 'gold' | 'jade' | 'throne'
 
 /** How the next game's room is chosen. */
 export type RoomMode = 'highest_four' | 'highest_three' | 'manual'

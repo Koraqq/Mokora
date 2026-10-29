@@ -6,8 +6,16 @@ import { cn } from '@/lib/utils'
 // status bar). While settings changes wait to be saved or cancelled, a press
 // on it does nothing but nudge the settings bar. `display: contents` keeps
 // the wrapper out of the layout; presses still pass through it.
-export function SettingsLock({ children }: { children: ReactNode }) {
-  const locked = useSettingsGuardStore((s) => s.changes > 0)
+export function SettingsLock({
+  children,
+  exempt = false,
+}: {
+  children: ReactNode
+  /** Leave this part usable while changes wait (the sidebar, as its order is set). */
+  exempt?: boolean
+}) {
+  const waiting = useSettingsGuardStore((s) => s.changes > 0)
+  const locked = waiting && !exempt
   const nudge = useSettingsGuardStore((s) => s.nudge)
 
   const swallow = (e: React.SyntheticEvent) => {

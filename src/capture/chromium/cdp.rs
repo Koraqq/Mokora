@@ -259,6 +259,13 @@ pub async fn run(
                     Ok(handle) => {
                         info!("CDP: attached to page target {id}");
                         subscribed.insert(id, handle);
+                        // A window the game opened may be a sign-in one.
+                        if let Some(ctx) = &autoplay {
+                            tokio::spawn(crate::autoplay::login::watch_popup(
+                                page.clone(),
+                                ctx.clone(),
+                            ));
+                        }
                     }
                     Err(e) => {
                         warn!("CDP: failed to attach to target {id}: {e:#}");
@@ -379,6 +386,15 @@ async fn attach_page(
     page.execute(NetworkEnableParams::default())
         .await
         .context("Network.enable")?;
+    // Where the player presses on the game, so the icon that opens a Google
+    // or Facebook sign-in window can be pressed again (`autoplay::login`).
+    if autoplay.is_some() {
+        let recorder = crate::autoplay::login::RECORDER_JS;
+        if let Err(e) = page.evaluate_on_new_document(recorder).await {
+            debug!("CDP: press recorder not installed on target {target_id}: {e:#}");
+        }
+        let _ = page.evaluate(recorder).await;
+    }
     // The pause listener has to exist before `Fetch.enable` arms the
     // interceptor: a request paused with no listener yet is a request nobody
     // ever continues, and the page hangs on it. The stream buffers

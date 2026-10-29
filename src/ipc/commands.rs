@@ -1755,11 +1755,39 @@ pub async fn delete_game_history_entry(id: String, state: Acct) -> CmdResult<boo
 /// config so the user can't accidentally point the auto-updater elsewhere.
 const UPSTREAM_REPO: &str = "Koraqq/Mokora";
 
+/// How long one automatic answer from GitHub is shared by every account. Each
+/// account interface runs its own scheduler, so without this N accounts would
+/// ask GitHub N times per round and exhaust its per-IP quota.
+const UPDATE_SHARE: std::time::Duration = std::time::Duration::from_secs(150);
+
+type SharedAnswer = (std::time::Instant, Option<crate::updater::UpdateInfo>);
+
+/// The newest automatic answer and when it arrived (shared by all accounts).
+static UPDATE_ANSWER: std::sync::Mutex<Option<SharedAnswer>> = std::sync::Mutex::new(None);
+
+/// The version the user answered "Cancel" for in this run: one answer for the
+/// whole window, not for whichever account interface was showing.
+static UPDATE_CANCELLED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+fn shared_update_answer() -> Option<Option<crate::updater::UpdateInfo>> {
+    let answer = UPDATE_ANSWER.lock().ok()?;
+    let (at, info) = answer.as_ref()?;
+    (at.elapsed() < UPDATE_SHARE).then(|| info.clone())
+}
+
+fn without_cancelled(info: Option<crate::updater::UpdateInfo>) -> Option<crate::updater::UpdateInfo> {
+    let cancelled = UPDATE_CANCELLED.lock().ok().and_then(|c| c.clone());
+    info.filter(|info| cancelled.as_deref() != Some(info.latest_version.as_str()))
+}
+
 /// Is there a newer release than the one running? Called at launch, which
 /// stays quiet once the user chose "don't remind me again" on this version
 /// (`manual: false`), and from the Settings "Check for updates" button,
 /// which always answers (`manual: true`). `Ok(None)` when up to date or
 /// muted; `Err` for network / parse failures.
+///
+/// Every account interface asks, but only the shown account's automatic check
+/// is answered, and automatic answers are shared (see [`UPDATE_SHARE`]).
 #[tauri::command]
 pub async fn check_for_update(
     state: Acct,
@@ -1770,11 +1798,22 @@ pub async fn check_for_update(
     if !manual && crate::updater::reminders::muted() {
         return Ok(None);
     }
-    // Every automatic check keeps out of the way while any account is playing.
-    // The frontend also guards this, but the backend owns the authoritative
-    // state and closes the race where a game starts as the request is sent.
-    if !manual && hub.any_in_game().await {
+    if !manual && hub.active_id() != *state.account_id {
         return Ok(None);
+    }
+    // An automatic check keeps out of the way while any account is playing,
+    // and the every-few-minutes one also in full auto (the prompt would wait
+    // on a player who is not there). The backend owns the authoritative state
+    // and closes the race where a game starts as the request is sent.
+    if !manual
+        && (hub.any_in_game().await || (periodic == Some(true) && hub.any_full_auto().await))
+    {
+        return Ok(None);
+    }
+    if !manual {
+        if let Some(info) = shared_update_answer() {
+            return Ok(without_cancelled(info));
+        }
     }
     let Ok(_guard) = state.updater_lock.try_lock() else {
         return Err("an update check is already in progress".into());
@@ -1783,13 +1822,56 @@ pub async fn check_for_update(
     let update = crate::updater::check_for_update(UPSTREAM_REPO, &net)
         .await
         .map_err(|e| format!("check for update: {e:#}"))?;
-    // A game may have started while GitHub was answering. Hold the prompt;
-    // the last-game-ended transition immediately performs a fresh check.
-    if !manual && hub.any_in_game().await {
-        return Ok(None);
+    if !manual {
+        if let Ok(mut answer) = UPDATE_ANSWER.lock() {
+            *answer = Some((std::time::Instant::now(), update.clone()));
+        }
+        // A game may have started while GitHub was answering. Hold the prompt;
+        // the last-game-ended transition immediately performs a fresh check.
+        if hub.any_in_game().await {
+            return Ok(None);
+        }
+        return Ok(without_cancelled(update));
     }
-    let _ = periodic; // retained for compatibility with released frontends
     Ok(update)
+}
+
+/// The newest announcement already shown on any account.
+#[tauri::command]
+pub fn get_announcement_seen() -> Option<String> {
+    crate::accounts::announcement_seen()
+}
+
+/// An announcement was closed: no account shows it again, and the other
+/// account interfaces drop a copy they may already have open.
+#[tauri::command]
+pub fn set_announcement_seen(date: String, app: AppHandle) -> CmdResult<()> {
+    let newest = crate::accounts::set_announcement_seen(&date).map_err(|e| format!("{e:#}"))?;
+    app.emit("announcement-seen", newest).map_err(|e| e.to_string())
+}
+
+/// The look every account shows while sharing is on.
+#[tauri::command]
+pub fn get_appearance() -> crate::accounts::Appearance {
+    crate::accounts::appearance()
+}
+
+/// Save the look and tell every account interface: the ones that follow the
+/// shared look apply it, the others return to their own.
+#[tauri::command]
+pub fn set_appearance(look: crate::accounts::Appearance, app: AppHandle) -> CmdResult<()> {
+    let stored = crate::accounts::set_appearance(look).map_err(|e| format!("{e:#}"))?;
+    app.emit("appearance-changed", stored).map_err(|e| e.to_string())
+}
+
+/// "Cancel" on the update prompt: every account interface closes it and none
+/// asks about this version again until the next launch.
+#[tauri::command]
+pub fn dismiss_update(version: String, app: AppHandle) -> CmdResult<()> {
+    if let Ok(mut cancelled) = UPDATE_CANCELLED.lock() {
+        *cancelled = Some(version.clone());
+    }
+    app.emit("update-dismissed", version).map_err(|e| e.to_string())
 }
 
 /// "Update": download the latest release's package, start installing it,
@@ -1811,9 +1893,12 @@ pub async fn install_update(state: Acct, hub: State<'_, Hub>) -> CmdResult<()> {
 /// "Don't remind me again": no update prompt at launch until a newer
 /// version than this one is installed.
 #[tauri::command]
-pub async fn mute_update_reminders() -> CmdResult<()> {
-    crate::updater::reminders::mute()
-        .map_err(|e| format!("could not save the choice: {e:#}"))
+pub async fn mute_update_reminders(app: AppHandle) -> CmdResult<()> {
+    crate::updater::reminders::mute().map_err(|e| format!("could not save the choice: {e:#}"))?;
+    // Every account interface closes its prompt (an empty version: not a
+    // cancelled one, just answered).
+    let _ = app.emit("update-dismissed", String::new());
+    Ok(())
 }
 
 // ---------- License (see `crate::license`) ----------
@@ -2081,6 +2166,11 @@ fn persist_config(config: &AppConfig, path: &Path) -> std::io::Result<()> {
 macro_rules! ipc_handlers {
     () => {
         ::tauri::generate_handler![
+            $crate::ipc::commands::dismiss_update,
+            $crate::ipc::commands::get_announcement_seen,
+            $crate::ipc::commands::get_appearance,
+            $crate::ipc::commands::set_appearance,
+            $crate::ipc::commands::set_announcement_seen,
             $crate::ipc::commands::publish_notification,
             $crate::ipc::commands::dismiss_notification,
             $crate::ipc::commands::get_config,

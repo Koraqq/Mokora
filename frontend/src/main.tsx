@@ -12,6 +12,7 @@ import { Bots } from '@/routes/Bots'
 import { History } from '@/routes/History'
 import { Review } from '@/routes/Review'
 import { Logs } from '@/routes/Logs'
+import { Appearance } from '@/routes/Appearance'
 import { Settings } from '@/routes/Settings'
 import { Profile } from '@/routes/Profile'
 import { Setup } from '@/routes/Setup'
@@ -63,6 +64,7 @@ const router = createHashRouter([
       { path: 'review', element: <Review /> },
       { path: 'logs', element: <Logs /> },
       { path: 'profile', element: <Profile /> },
+      { path: 'appearance', element: <Appearance /> },
       { path: 'settings', element: <Settings /> },
     ],
   },

@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Ellipsis } from 'lucide-react'
+import { ChevronDown, ChevronUp, Ellipsis } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { getMenuList } from '@/lib/menuList'
+import { getMenuList, moveMenuItem } from '@/lib/menuList'
+import { useMenuOrder, useSidebar } from '@/hooks/useSidebar'
 import { useUiPrefsStore } from '@/stores/uiPrefsStore'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -29,7 +30,15 @@ export function Menu({ isOpen }: MenuProps) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
   const developerMode = useUiPrefsStore((s) => s.developerMode)
-  const menuList = getMenuList(t, developerMode)
+  const order = useMenuOrder()
+  const menuList = getMenuList(t, developerMode, order)
+  const ordering = useSidebar((s) => s.ordering)
+  const picked = useSidebar((s) => s.picked)
+  const setPicked = useSidebar((s) => s.setPicked)
+  const setPreviewOrder = useSidebar((s) => s.setPreviewOrder)
+  const shown = menuList.flatMap((group) => group.menus.map((menu) => menu.id))
+  const move = (id: string, direction: -1 | 1) =>
+    setPreviewOrder(moveMenuItem(order, shown, id, direction))
 
   return (
     // `flex-1 min-h-0` lets ScrollArea claim whatever vertical space the
@@ -63,7 +72,53 @@ export function Menu({ isOpen }: MenuProps) {
               ) : (
                 <p className="pb-2"></p>
               )}
-              {menus.map(({ href, label, icon: Icon, active }, i) => {
+              {menus.map(({ id, href, label, icon: Icon, active }, i) => {
+                if (ordering) {
+                  // Setting the order: pages are picked, not opened.
+                  const isPicked = picked === id
+                  return (
+                    <div className="mb-1 flex w-full items-center gap-1" key={id}>
+                      <Button
+                        variant={isPicked ? 'secondary' : 'ghost'}
+                        aria-pressed={isPicked}
+                        onClick={() => setPicked(isPicked ? null : id)}
+                        className={cn(
+                          'h-10 min-w-0 flex-1 justify-start',
+                          isPicked && 'ring-1 ring-primary',
+                        )}
+                      >
+                        <span className="mr-4 shrink-0">
+                          <Icon size={18} />
+                        </span>
+                        <p className="max-w-[9rem] truncate">{label}</p>
+                      </Button>
+                      {isPicked && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            aria-label={t('settings.look.menu_up')}
+                            disabled={i === 0 && index === 0}
+                            onClick={() => move(id, -1)}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            aria-label={t('settings.look.menu_down')}
+                            disabled={i === menus.length - 1 && index === menuList.length - 1}
+                            onClick={() => move(id, 1)}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )
+                }
                 const itemActive =
                   active === undefined ? isItemActive(pathname, href) : active
                 return (

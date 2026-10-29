@@ -16,10 +16,16 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 // palettes) before this module loads.
 
 export type ThemeMode = 'light' | 'dark' | 'system'
-export type ThemePalette = 'default' | 'crimson' | 'slate' | 'custom'
+export type ThemePalette = 'mokora' | 'default' | 'crimson' | 'slate' | 'custom'
 
 export const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'system']
-export const THEME_PALETTES: readonly ThemePalette[] = ['default', 'crimson', 'slate', 'custom']
+export const THEME_PALETTES: readonly ThemePalette[] = [
+  'mokora',
+  'default',
+  'crimson',
+  'slate',
+  'custom',
+]
 
 export const THEME_MODE_DEFAULT: ThemeMode = 'system'
 export const THEME_PALETTE_DEFAULT: ThemePalette = 'default'
@@ -236,6 +242,12 @@ function applyTheme(mode: ThemeMode, palette: ThemePalette, custom: CustomTheme)
   } else {
     applyCustomCss(null)
   }
+}
+
+/** Show a theme without keeping it: nothing is stored, so the stored one
+ *  comes back the moment `applyTheme` runs with it again (settings preview). */
+export function previewTheme(mode: ThemeMode, palette: ThemePalette, custom: CustomTheme): void {
+  applyTheme(mode, palette, custom)
 }
 
 // Tweakcn / shadcn registry shape:

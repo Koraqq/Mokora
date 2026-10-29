@@ -93,11 +93,12 @@ describe('UpdateDialog', () => {
     useUpdaterStore.setState({ pendingUpdate: INFO, dialogOpen: true })
   })
 
-  it('offers "don\'t remind me" at the far left, then Cancel and Update', () => {
+  it('asks only whether to update, without rendering release-note markup', () => {
     render(<UpdateDialog />)
     expect(screen.getByText('updates.dialog.title')).toBeTruthy()
     expect(screen.getByText('updates.dialog.question')).toBeTruthy()
-    expect(screen.getByText('Fixed: things')).toBeTruthy()
+    expect(screen.queryByText('updates.dialog.notes_heading')).toBeNull()
+    expect(screen.queryByText('Fixed: things')).toBeNull()
     const order = screen
       .getAllByRole('button')
       .map((b) => b.textContent)
@@ -125,7 +126,8 @@ describe('UpdateDialog', () => {
     expect(useUpdaterStore.getState().dialogOpen).toBe(false)
     expect(useUpdaterStore.getState().pendingUpdate).toEqual(INFO)
     expect(useUpdaterStore.getState().dismissedVersion).toBe('0.3.1')
-    expect(invoke).not.toHaveBeenCalled()
+    // One answer for every account interface: the backend is told.
+    expect(invoke).toHaveBeenCalledWith('dismiss_update', { version: '0.3.1' })
   })
 
   it('"Don\'t remind me" saves the choice and drops the offer', async () => {

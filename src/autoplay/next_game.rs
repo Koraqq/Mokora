@@ -324,7 +324,9 @@ fn room_target(lay: &Layout, room: RankRoom) -> (Edge, (f64, f64)) {
         RankRoom::Silver => (Edge::Top, lay.room_top[1]),
         RankRoom::Gold => (Edge::Top, lay.room_top[2]),
         RankRoom::Jade => (Edge::Bottom, lay.room_bottom[1]),
-        RankRoom::Throne => (Edge::Bottom, lay.room_bottom[2]),
+        // Resolved to a real room before anything is pressed (`manual_room`);
+        // the highest one is the safe reading should it ever get here.
+        RankRoom::Throne | RankRoom::Highest => (Edge::Bottom, lay.room_bottom[2]),
     }
 }
 
@@ -386,11 +388,68 @@ fn ladder_of(mode: RoomMode) -> Option<Ladder> {
     }
 }
 
+/// The ladder of a ranked game, from the level id it was played at
+/// (`10301` is on the 4-player ladder, `20202` on the 3-player one).
+fn ladder_of_level(level: u32) -> Option<Ladder> {
+    match level / 10000 {
+        1 => Some(Ladder::Four),
+        2 => Some(Ladder::Three),
+        _ => None,
+    }
+}
+
+/// The ladder a set table rule queues on; `Same` takes the last game's.
+fn rule_ladder(rule: NextGameRule, last: Option<Ladder>) -> Option<Ladder> {
+    match rule {
+        NextGameRule::FourEast | NextGameRule::FourSouth => Some(Ladder::Four),
+        NextGameRule::ThreeEast | NextGameRule::ThreeSouth => Some(Ladder::Three),
+        NextGameRule::Same => last,
+    }
+}
+
+/// The table rule to press for a room that may change with the rank: `Same`
+/// is the last game's ladder and East or South, since the last table's id
+/// belongs to the room it was played in.
+fn rule_for_changing_room(
+    rule: NextGameRule,
+    last_mode: Option<u32>,
+    last: Option<Ladder>,
+) -> Result<NextGameRule, Stop> {
+    if rule != NextGameRule::Same {
+        return Ok(rule);
+    }
+    let (mode, ladder) = last_mode.zip(last).ok_or(Stop::NoTableToRepeat)?;
+    Ok(match (ladder, mode_is_south(mode)) {
+        (Ladder::Four, false) => NextGameRule::FourEast,
+        (Ladder::Four, true) => NextGameRule::FourSouth,
+        (Ladder::Three, false) => NextGameRule::ThreeEast,
+        (Ladder::Three, true) => NextGameRule::ThreeSouth,
+    })
+}
+
+/// The room of a hand-set queue: the configured one, or for `Highest` the
+/// highest the rank of the rule's ladder allows.
+fn manual_room(
+    ng: &NextGameConfig,
+    levels: (Option<u32>, Option<u32>),
+    last: Option<Ladder>,
+) -> Result<RankRoom, Stop> {
+    if ng.room != RankRoom::Highest {
+        return Ok(ng.room);
+    }
+    let ladder = rule_ladder(ng.rule, last).ok_or(Stop::NoTableToRepeat)?;
+    highest_room(ladder, levels)
+}
+
 /// What the next game will be, as far as it is known before the lobby is
 /// opened: for the rank-picked modes the ladder and its highest room (once
 /// the rank is known; the table follows the player counts), for `Manual`
 /// the configured room and table. Shown while resting and queuing.
-fn target_of(ng: &NextGameConfig, levels: (Option<u32>, Option<u32>)) -> NextGameTarget {
+fn target_of(
+    ng: &NextGameConfig,
+    levels: (Option<u32>, Option<u32>),
+    last: Option<Ladder>,
+) -> NextGameTarget {
     match ladder_of(ng.room_mode) {
         Some(ladder) => NextGameTarget {
             room: highest_room(ladder, levels).ok(),
@@ -401,7 +460,7 @@ fn target_of(ng: &NextGameConfig, levels: (Option<u32>, Option<u32>)) -> NextGam
             rule: None,
         },
         None => NextGameTarget {
-            room: Some(ng.room),
+            room: manual_room(ng, levels, last).ok(),
             players: None,
             rule: Some(ng.rule),
         },
@@ -447,7 +506,7 @@ fn coin_floor(room: RankRoom, south: bool) -> u64 {
         RankRoom::Bronze => (0, 0),
         RankRoom::Silver => (2500, 3500),
         RankRoom::Gold => (5000, 7000),
-        RankRoom::Jade | RankRoom::Throne => (10000, 14000),
+        RankRoom::Jade | RankRoom::Throne | RankRoom::Highest => (10000, 14000),
     };
     if south {
         south_floor
@@ -532,6 +591,8 @@ struct NextGame {
     notify: NotifyBus,
     /// Mode id of the last ranked game started, if it was a ranked one.
     last_mode: Option<u32>,
+    /// The ladder that game was on (from the level it was played at).
+    last_ladder: Option<Ladder>,
     /// Games queued by this run of the app.
     queued: u32,
     /// Where a picture of the screen is left when a run stops (next to the
@@ -921,9 +982,31 @@ impl NextGame {
             }
         }
 
-        self.press_with(ap, lay.login_enter, not_in_game)
-            .await?;
-        self.lobby_within(RELOGIN_WAIT).await
+        self.press_sign_in(ap, not_in_game).await?;
+        let lobby_back = self.lobby_within(RELOGIN_WAIT).await;
+        self.ctx.lobby.disarm_assist();
+        lobby_back
+    }
+
+    /// Press what signs the account in on the login screen: 進入遊戲, or for
+    /// a Google or Facebook account the provider's icon, where it was pressed
+    /// on an earlier login. The provider's own window that opens is answered
+    /// by the page poll while the flow is armed (see `autoplay::login`).
+    async fn press_sign_in(
+        &self,
+        ap: &MajsoulAutoplayConfig,
+        guard: impl Fn() -> bool,
+    ) -> Result<bool, Stop> {
+        let lay = self.lay()?;
+        let setup = self.ctx.lobby.login_setup();
+        match setup.and_then(|s| s.provider_press().map(|at| (s.method, at))) {
+            Some((method, at)) => {
+                info!("next-game: signing in through {method:?}");
+                self.ctx.lobby.arm_assist(method);
+                self.press_with(ap, at, guard).await
+            }
+            None => self.press_with(ap, lay.login_enter, guard).await,
+        }
     }
 
     /// Reload the game page and log in from whatever comes up: the lobby
@@ -955,8 +1038,7 @@ impl NextGame {
                     .yellow_within(lay.login_enter_box, Duration::ZERO)
                     .await
             {
-                self.press_with(ap, lay.login_enter, || !lobby.in_game())
-                    .await?;
+                self.press_sign_in(ap, || !lobby.in_game()).await?;
                 entered = true;
             }
             if Instant::now() >= deadline {
@@ -1110,7 +1192,7 @@ impl NextGame {
         let deadline = Instant::now() + rest;
         self.announce(NextGameStatus::Resting {
             until_ms: chrono::Utc::now().timestamp_millis() + rest.as_millis() as i64,
-            next: target_of(ng, lobby.levels()),
+            next: target_of(ng, lobby.levels(), self.last_ladder),
         });
         while Instant::now() < deadline {
             let left = deadline.saturating_duration_since(Instant::now());
@@ -1550,7 +1632,7 @@ impl NextGame {
         // the daily limit holds.
         self.check_daily_limit(ng)?;
         self.announce(NextGameStatus::Queueing {
-            next: target_of(ng, lobby.levels()),
+            next: target_of(ng, lobby.levels(), self.last_ladder),
         });
         let ticket = lobby.ticket();
         let timeout = u64::from(ng.step_timeout_ms.max(1000));
@@ -1571,12 +1653,25 @@ impl NextGame {
                 info!("next-game: highest {ladder:?} room: {room:?}");
                 room
             }
-            None => ng.room,
+            None => {
+                let room = manual_room(ng, lobby.levels(), self.last_ladder)?;
+                if ng.room == RankRoom::Highest {
+                    info!("next-game: highest room for the rule: {room:?}");
+                }
+                room
+            }
+        };
+        // A room that follows the rank may not be the one the last game was
+        // in, so the table is named by its East / South and ladder alone.
+        let rule = if ng.room == RankRoom::Highest {
+            rule_for_changing_room(ng.rule, self.last_mode, self.last_ladder)?
+        } else {
+            ng.rule
         };
 
         // Coins: every room above Bronze asks a floor of copper coins of
         // its tables. Short of the room's, today's revive coins first.
-        let need = coins_to_open(room, ladder, ng.rule, self.last_mode);
+        let need = coins_to_open(room, ladder, rule, self.last_mode);
         self.ensure_coins(room, need).await?;
 
         // The room. One press, one answer: the client replies to a room it
@@ -1627,7 +1722,7 @@ impl NextGame {
                 // own list says so: the last table must be in it. (With no
                 // last game there is nothing to compare, and the configured
                 // rule picks.)
-                if let Some(mode) = self.last_mode {
+                if let Some(mode) = self.last_mode.filter(|_| ng.room != RankRoom::Highest) {
                     if !listed.contains(&mode) {
                         return Err(Stop::RoomMismatch {
                             want: mode,
@@ -1635,7 +1730,7 @@ impl NextGame {
                         });
                     }
                 }
-                table_index(ng.rule, self.last_mode, &listed)?
+                table_index(rule, self.last_mode, &listed)?
             }
         };
         let (edge, at) = table_target(&lay, index).ok_or(Stop::TableNotListed {
@@ -1840,6 +1935,13 @@ fn ranked_mode(meta: &Option<crate::schema::GameMeta>) -> Option<u32> {
     }
 }
 
+fn ranked_ladder(meta: &Option<crate::schema::GameMeta>) -> Option<Ladder> {
+    match meta.as_ref()?.match_info.as_ref()? {
+        MatchInfo::Majsoul { level_id, .. } => level_id.and_then(ladder_of_level),
+        _ => None,
+    }
+}
+
 /// Long-lived task: watches for a game ending (and for the test button) and
 /// runs the next-game sequence. Its own subscription to the mjai bus, so the
 /// minute a run takes never holds the autoplay manager's plan loop up.
@@ -1859,6 +1961,7 @@ pub async fn run_next_game(
         ctx,
         notify,
         last_mode: None,
+        last_ladder: None,
         queued: 0,
         config_dir,
         baseline: Mutex::new(None),
@@ -1868,6 +1971,7 @@ pub async fn run_next_game(
             ev = rx.recv() => match ev {
                 Ok(MjaiEvent::StartGame { game_meta, .. }) => {
                     flow.last_mode = ranked_mode(&game_meta);
+                    flow.last_ladder = ranked_ladder(&game_meta);
                     flow.announce(NextGameStatus::Idle);
                 }
                 Ok(MjaiEvent::EndGame { reason: GameEndReason::Confirmed, .. }) => {
@@ -1938,13 +2042,58 @@ mod tests {
 
     /// Rank-picked modes name the ladder and its room (once the rank is
     /// known) and leave the table to the player counts; `Manual` names both.
+    /// "Highest rank" as the room of a hand-set queue: the ladder comes from
+    /// the table rule (or, for "same", from the last game), and the table
+    /// from that game's East / South.
+    #[test]
+    fn a_manual_room_can_follow_the_rank() {
+        let levels = (Some(10301), Some(20401));
+        let mut ng = NextGameConfig {
+            room_mode: RoomMode::Manual,
+            room: RankRoom::Highest,
+            rule: NextGameRule::FourSouth,
+            ..NextGameConfig::default()
+        };
+        assert_eq!(manual_room(&ng, levels, None), Ok(RankRoom::Gold));
+        ng.rule = NextGameRule::ThreeEast;
+        assert_eq!(manual_room(&ng, levels, None), Ok(RankRoom::Jade));
+        ng.rule = NextGameRule::Same;
+        assert_eq!(manual_room(&ng, levels, Some(Ladder::Four)), Ok(RankRoom::Gold));
+        assert_eq!(manual_room(&ng, levels, None), Err(Stop::NoTableToRepeat));
+        assert_eq!(manual_room(&ng, (None, None), Some(Ladder::Four)), Err(Stop::RankUnknown));
+        ng.room = RankRoom::Silver;
+        assert_eq!(manual_room(&ng, (None, None), None), Ok(RankRoom::Silver));
+
+        assert_eq!(ladder_of_level(10301), Some(Ladder::Four));
+        assert_eq!(ladder_of_level(20202), Some(Ladder::Three));
+        assert_eq!(ladder_of_level(0), None);
+        // "Same" keeps the last game's ladder and East / South, whichever
+        // room that game was in.
+        assert_eq!(
+            rule_for_changing_room(NextGameRule::Same, Some(12), Some(Ladder::Four)),
+            Ok(NextGameRule::FourSouth)
+        );
+        assert_eq!(
+            rule_for_changing_room(NextGameRule::Same, Some(19), Some(Ladder::Three)),
+            Ok(NextGameRule::ThreeEast)
+        );
+        assert_eq!(
+            rule_for_changing_room(NextGameRule::Same, None, None),
+            Err(Stop::NoTableToRepeat)
+        );
+        assert_eq!(
+            rule_for_changing_room(NextGameRule::ThreeSouth, None, None),
+            Ok(NextGameRule::ThreeSouth)
+        );
+    }
+
     #[test]
     fn the_next_target_follows_the_room_mode() {
         let mut ng = NextGameConfig {
             room_mode: RoomMode::HighestThree,
             ..NextGameConfig::default()
         };
-        let three = target_of(&ng, (None, None));
+        let three = target_of(&ng, (None, None), None);
         assert_eq!(
             (three.room, three.players, three.rule),
             (None, Some(3), None)
@@ -1952,7 +2101,7 @@ mod tests {
         ng.room_mode = RoomMode::Manual;
         ng.room = RankRoom::Jade;
         ng.rule = NextGameRule::ThreeSouth;
-        let manual = target_of(&ng, (None, None));
+        let manual = target_of(&ng, (None, None), None);
         assert_eq!(
             (manual.room, manual.players, manual.rule),
             (Some(RankRoom::Jade), None, Some(NextGameRule::ThreeSouth))

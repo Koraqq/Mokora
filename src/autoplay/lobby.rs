@@ -22,6 +22,9 @@
 //! waiting*", which a count answers without any clock comparison.
 
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::{Duration, Instant};
+
+use super::login::{LoginMethod, LoginSetup};
 
 use crate::schema::{
     AccountProfile, Achievements, LevelScore, MajsoulRankStats, MajsoulRecentGame,
@@ -120,6 +123,13 @@ struct Inner {
     profile_changes: u64,
     /// The player's main character's id.
     main_character: Option<u32>,
+    /// How this account signs in (see `autoplay::login`), and a counter that
+    /// moves with it so the saved copy can follow.
+    login: Option<LoginSetup>,
+    login_changes: u64,
+    /// The next-game flow is logging the account back in through a provider:
+    /// the provider's window that opens is answered, not just noted.
+    assist: Option<(LoginMethod, Instant)>,
 }
 
 /// Today, as days since the epoch in local time: the revive coins reset
@@ -162,6 +172,50 @@ impl LobbyWatch {
         // A poisoned lock only means a writer panicked mid-update of plain
         // counters; the data is still the best answer there is.
         self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// How this account signs in, as far as it is known.
+    pub fn login_setup(&self) -> Option<LoginSetup> {
+        self.lock().login.clone()
+    }
+
+    /// A login showed how the account signs in.
+    pub fn note_login_setup(&self, setup: LoginSetup) {
+        let mut g = self.lock();
+        if g.login.as_ref() != Some(&setup) {
+            g.login = Some(setup);
+            g.login_changes += 1;
+        }
+    }
+
+    /// What was saved earlier: known from the start, nothing to save again.
+    pub fn restore_login_setup(&self, setup: LoginSetup) {
+        let mut g = self.lock();
+        if g.login.is_none() {
+            g.login = Some(setup);
+        }
+    }
+
+    /// Moves whenever [`Self::note_login_setup`] changed something.
+    pub fn login_changes(&self) -> u64 {
+        self.lock().login_changes
+    }
+
+    /// The flow is about to press a provider's icon: answer its window.
+    pub fn arm_assist(&self, method: LoginMethod) {
+        self.lock().assist = Some((method, Instant::now()));
+    }
+
+    /// The provider the flow is waiting on, while it still is (a minute).
+    pub fn assist_armed(&self) -> Option<LoginMethod> {
+        self.lock()
+            .assist
+            .filter(|(_, since)| since.elapsed() < Duration::from_secs(60))
+            .map(|(method, _)| method)
+    }
+
+    pub fn disarm_assist(&self) {
+        self.lock().assist = None;
     }
 
     /// A game's `authGame` came back: the client is at a table.
@@ -675,6 +729,43 @@ mod tests {
 
     /// Each ladder keeps its own level, and a game's reward moves only the
     /// ladder it was played on.
+    /// How the account signs in is learned from its logins, kept across runs
+    /// without being saved again, and the flow's wait for a provider's window
+    /// is armed and disarmed.
+    #[test]
+    fn how_the_account_signs_in_is_learned_and_restored() {
+        let w = LobbyWatch::default();
+        assert_eq!(w.login_setup(), None);
+        let google = LoginSetup {
+            method: LoginMethod::Google,
+            press: Some((6.0, 7.5)),
+            account: None,
+        };
+        // What was saved earlier is known, but is not a change to save.
+        w.restore_login_setup(google.clone());
+        assert_eq!(w.login_setup(), Some(google.clone()));
+        assert_eq!(w.login_changes(), 0);
+        // The same login again changes nothing; a different one does.
+        w.note_login_setup(google);
+        assert_eq!(w.login_changes(), 0);
+        w.note_login_setup(LoginSetup::password());
+        assert_eq!(w.login_changes(), 1);
+        assert_eq!(w.login_setup(), Some(LoginSetup::password()));
+        // Restoring never overrides what a login showed.
+        w.restore_login_setup(LoginSetup {
+            method: LoginMethod::Facebook,
+            press: None,
+            account: None,
+        });
+        assert_eq!(w.login_setup(), Some(LoginSetup::password()));
+
+        assert_eq!(w.assist_armed(), None);
+        w.arm_assist(LoginMethod::Facebook);
+        assert_eq!(w.assist_armed(), Some(LoginMethod::Facebook));
+        w.disarm_assist();
+        assert_eq!(w.assist_armed(), None);
+    }
+
     #[test]
     fn levels_are_kept_per_ladder() {
         let w = LobbyWatch::default();

@@ -42,20 +42,24 @@ describe('announcementStore', () => {
     stubLocalStorage()
   })
 
-  it('arms the launch showing when there are unseen entries', async () => {
+  it('arms a complete announcement history when there are unseen entries', async () => {
     localStorage.setItem(LAST_SEEN_KEY, '2026-08-12')
     const store = await freshStore([V360, V350, NEWS])
 
     expect(store.getState().prepareLaunch()).toBe(true)
     expect(store.getState().launchShowPending).toBe(true)
     expect(store.getState().open).toBe(false)
-    expect(store.getState().entries.map((e) => e.id)).toEqual(['v3_6_0'])
+    expect(store.getState().entries.map((e) => e.id)).toEqual([
+      'v3_6_0',
+      'v3_5_0',
+      'news',
+    ])
 
     store.getState().showLaunch()
     expect(store.getState().open).toBe(true)
   })
 
-  it('replays skipped entries, news included', async () => {
+  it('shows the same complete history after a skipped update', async () => {
     localStorage.setItem(LAST_SEEN_KEY, '2026-08-01')
     const store = await freshStore([V360, V350, NEWS])
 

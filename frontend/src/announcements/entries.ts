@@ -62,6 +62,16 @@ export type AnnouncementEntry = {
  */
 export const ANNOUNCEMENTS: AnnouncementEntry[] = [
   {
+    id: 'v0_1_2',
+    date: '2026-10-30',
+    version: '0.1.2',
+    notes: {
+      added: ['linux_support', 'appearance_page', 'manual_update', 'room_highest', 'sidebar_order'],
+      fixed: ['dialog_blur', 'autoplay_fixes', 'top_discards', 'visual_feel'],
+      planned: ['share_records', 'other_games'],
+    },
+  },
+  {
     id: 'v0_1_1',
     date: '2026-10-26',
     version: '0.1.1',

@@ -88,6 +88,10 @@ export function syncToastDismissal(id: string) {
 export function dismissToastLocally(id: string) {
   remotelyDismissed.add(id)
   sonnerToast.dismiss(id)
+  // Sonner reports this dismissal at once if the toast is here. When it is
+  // not (never shown in this interface), the mark must not outlive it and
+  // swallow the user's own close of a later toast with the same id.
+  window.setTimeout(() => remotelyDismissed.delete(id), 1000)
 }
 
 function notify(severity: ToastSeverity, message: string, opts: NotifyOpts = {}) {

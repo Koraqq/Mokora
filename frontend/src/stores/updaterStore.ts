@@ -63,6 +63,8 @@ type Actions = {
   openDialog: () => void
   /// "Cancel": close, and let the periodic check skip this version.
   dismiss: () => void
+  /// Another account interface answered the prompt (cancelled or muted it).
+  answeredElsewhere: (version: string) => void
   closeDialog: () => void
 }
 
@@ -129,10 +131,19 @@ export const useUpdaterStore = create<UpdaterStore>()(
       setAutoCheckEnabled: (enabled: boolean) => set({ autoCheckEnabled: enabled }),
       setPeriodicCheckEnabled: (enabled: boolean) => set({ periodicCheckEnabled: enabled }),
       openDialog: () => set({ dialogOpen: true }),
-      dismiss: () =>
+      dismiss: () => {
+        const version = get().pendingUpdate?.latest_version
         set((s) => ({
           dialogOpen: false,
-          dismissedVersion: s.pendingUpdate?.latest_version ?? s.dismissedVersion,
+          dismissedVersion: version ?? s.dismissedVersion,
+        }))
+        // One answer for every account interface (the backend tells the rest).
+        if (version) void Promise.resolve(invoke('dismiss_update', { version })).catch(() => {})
+      },
+      answeredElsewhere: (version: string) =>
+        set((s) => ({
+          dialogOpen: false,
+          dismissedVersion: version || s.dismissedVersion,
         })),
       closeDialog: () => set({ dialogOpen: false }),
     }),

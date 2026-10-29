@@ -3,7 +3,7 @@ import { Menu as MenuIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { MokoraWordmark } from '@/components/BrandLogo'
-import { useSidebar } from '@/hooks/useSidebar'
+import { useSidebar, useSidebarSettings } from '@/hooks/useSidebar'
 import { useIsNarrow } from '@/hooks/useIsNarrow'
 
 /**
@@ -17,7 +17,7 @@ import { useIsNarrow } from '@/hooks/useIsNarrow'
 export function NarrowTopBar() {
   const { t } = useTranslation()
   const isNarrow = useIsNarrow()
-  const settings = useSidebar((s) => s.settings)
+  const settings = useSidebarSettings()
   const setDrawerOpen = useSidebar((s) => s.setDrawerOpen)
 
   // Wide enough to dock the sidebar, or the user disabled it outright — in

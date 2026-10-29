@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import { PERIODIC_CHECK_MS, useUpdaterStore } from '@/stores/updaterStore'
-import { HAS_TAURI } from '@/lib/tauri'
+import { HAS_TAURI, listen } from '@/lib/tauri'
 import { UpdateDialog } from '@/components/UpdateDialog'
 import { useAccounts } from '@/hooks/useAccounts'
 
@@ -30,6 +30,27 @@ export function UpdateNotifier() {
   const { accounts } = useAccounts()
   const inGame = accounts.some((account) => account.in_game)
   const wasInGame = useRef(inGame)
+
+  // The prompt is one answer for every account interface.
+  useEffect(() => {
+    if (!HAS_TAURI) return
+    let live = true
+    let stop: (() => void) | undefined
+    void Promise.resolve(
+      listen<string>('update-dismissed', (version) =>
+        useUpdaterStore.getState().answeredElsewhere(version),
+      ),
+    )
+      .then((unlisten) => {
+        if (live) stop = unlisten
+        else unlisten?.()
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+      stop?.()
+    }
+  }, [])
 
   // Deferred so startup stays quick and the rest of the app has mounted.
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import { HAS_TAURI, invoke } from '@/lib/tauri'
 import { ANNOUNCEMENTS, type AnnouncementEntry } from '@/announcements/entries'
 import { selectUnseenEntries } from '@/announcements/select'
 
@@ -20,17 +21,21 @@ function loadLastSeen(): string | null {
 type AnnouncementStore = {
   /** Persisted baseline; null until the user closes their first showing. */
   lastSeenDate: string | null
-  /** Entries the open dialog is showing, newest first. */
+  /** Every bundled entry, newest first, whenever the dialog is open. */
   entries: AnnouncementEntry[]
   open: boolean
   /** True while an armed launch showing hasn't been opened yet. */
   launchShowPending: boolean
   /**
-   * Launch path: pick the unseen entries and arm the dialog. Returns
-   * whether there is anything to show; the caller opens it after its own
-   * grace delay.
+   * Launch path: use unseen entries only to decide whether the dialog
+   * should open. The dialog itself always receives the complete history,
+   * exactly like the manual entry point.
    */
   prepareLaunch: () => boolean
+  /** Take over what any other account already showed (one answer for all). */
+  hydrate: () => Promise<void>
+  /** Another account interface closed the announcements up to `date`. */
+  seenElsewhere: (date: string) => void
   /** Actually open the armed launch showing (after the caller's delay). */
   showLaunch: () => void
   /** Settings entry point: browse the full announcement history. */
@@ -48,8 +53,28 @@ export const useAnnouncementStore = create<AnnouncementStore>((set, get) => ({
   prepareLaunch: () => {
     const unseen = selectUnseenEntries(ANNOUNCEMENTS, get().lastSeenDate)
     if (unseen.length === 0) return false
-    set({ entries: unseen, launchShowPending: true })
+    set({ entries: [...ANNOUNCEMENTS], launchShowPending: true })
     return true
+  },
+
+  hydrate: async () => {
+    if (!HAS_TAURI) return
+    try {
+      const shared = await invoke<string | null>('get_announcement_seen')
+      const own = get().lastSeenDate
+      if (shared && (own === null || shared > own)) set({ lastSeenDate: shared })
+    } catch {
+      /* keep this interface's own record */
+    }
+  },
+
+  seenElsewhere: (date) => {
+    set((s) => ({
+      lastSeenDate: s.lastSeenDate === null || date > s.lastSeenDate ? date : s.lastSeenDate,
+      // Only a launch showing in a hidden interface can still be open here.
+      open: false,
+      launchShowPending: false,
+    }))
   },
 
   showLaunch: () => {
@@ -76,6 +101,9 @@ export const useAnnouncementStore = create<AnnouncementStore>((set, get) => ({
           localStorage.setItem(LAST_SEEN_KEY, newest)
         } catch {
           /* quota — ignore */
+        }
+        if (HAS_TAURI) {
+          void Promise.resolve(invoke('set_announcement_seen', { date: newest })).catch(() => {})
         }
       }
       return {

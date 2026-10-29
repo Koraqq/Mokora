@@ -5,7 +5,7 @@ import { ChevronLeft, X } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { useSidebar } from '@/hooks/useSidebar'
+import { useSidebar, useSidebarSettings } from '@/hooks/useSidebar'
 import { useIsNarrow } from '@/hooks/useIsNarrow'
 import { MokoraIcon, MokoraWordmark } from '@/components/BrandLogo'
 import { Menu } from './Menu'
@@ -19,7 +19,8 @@ export function Sidebar() {
   const toggleOpen = useSidebar((s) => s.toggleOpen)
   const setIsHover = useSidebar((s) => s.setIsHover)
   const isHover = useSidebar((s) => s.isHover)
-  const settings = useSidebar((s) => s.settings)
+  const ordering = useSidebar((s) => s.ordering)
+  const settings = useSidebarSettings()
   const isDrawerOpen = useSidebar((s) => s.isDrawerOpen)
   const setDrawerOpen = useSidebar((s) => s.setDrawerOpen)
   const isNarrow = useIsNarrow()
@@ -55,7 +56,8 @@ export function Sidebar() {
   //
   // As a drawer it is always fully expanded: a 5.625rem rail of bare icons is
   // a pointless middle state for something that's already an overlay.
-  const open = isNarrow || isOpen || (settings.isHoverOpen && isHover)
+  // While the order is being set the sidebar stays open, whatever it is set to.
+  const open = isNarrow || isOpen || ordering || (settings.isHoverOpen && isHover)
   const showBackdrop = isNarrow && isDrawerOpen && !settings.disabled
 
   return (
@@ -76,7 +78,7 @@ export function Sidebar() {
           isNarrow
             ? cn('z-40 w-[18rem]', isDrawerOpen ? 'translate-x-0' : '-translate-x-full')
             : cn('z-20 translate-x-0', open ? 'w-[18rem]' : 'w-[5.625rem]'),
-          settings.disabled && 'hidden',
+          settings.disabled && !ordering && 'hidden',
         )}
       >
         <div
@@ -109,6 +111,7 @@ export function Sidebar() {
             )}
           </Link>
           {open &&
+            !ordering &&
             (isNarrow ? (
               // Pinning has no meaning for an overlay — the only useful
               // action here is dismissing it.

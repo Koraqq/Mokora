@@ -31,6 +31,29 @@ Mokora は雀魂の対局を監視し、ドラッグ可能な HUD に向聴数�
 > 使用すると、ゲームの利用規約に違反する可能性があります。その結果については
 > ご自身の責任となります。
 
+## Linux
+
+Ubuntu 22.04 以降、Kali Linux、そのほか WebKitGTK 4.1 のある Debian 系で動きます
+（以下のコマンドはどれでも同じです）。
+
+`.deb` でインストールします（必要なパッケージも一緒に入ります）：
+
+```sh
+sudo apt update
+sudo apt install ./Mokora_*_amd64.deb
+mokora
+```
+
+インストールせず `.AppImage` をそのまま実行することもできます：
+
+```sh
+sudo apt install libfuse2        # Ubuntu 24.04 以降は libfuse2t64
+chmod +x Mokora_*_amd64.AppImage
+./Mokora_*_amd64.AppImage
+```
+
+削除は `sudo apt remove mokora`。設定と履歴は `~/.config/mokora` に保存されます。
+
 ## ライセンス
 
 Apache License 2.0。詳しくは [LICENSE.txt](./LICENSE.txt) と

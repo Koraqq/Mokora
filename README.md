@@ -30,6 +30,30 @@ the recommended discard. The model is embedded: nothing to install.
 > For learning from your own games. Using an assistant in ranked play may
 > breach the game's terms of use; any consequence is yours.
 
+## Linux
+
+Ubuntu 22.04 or newer, Kali Linux and other Debian-based systems with
+WebKitGTK 4.1 (everything below is the same on all of them).
+
+Install from the `.deb` (it pulls in what it needs):
+
+```sh
+sudo apt update
+sudo apt install ./Mokora_*_amd64.deb
+mokora
+```
+
+Or run the `.AppImage`, which needs no installation:
+
+```sh
+sudo apt install libfuse2        # Ubuntu 24.04 and newer: libfuse2t64
+chmod +x Mokora_*_amd64.AppImage
+./Mokora_*_amd64.AppImage
+```
+
+Remove it with `sudo apt remove mokora`. Settings and history are kept in
+`~/.config/mokora`.
+
 ## Licence
 
 Apache License 2.0 — see [LICENSE.txt](./LICENSE.txt) and [NOTICE](./NOTICE).

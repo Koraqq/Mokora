@@ -50,6 +50,7 @@ pub mod cdp_input;
 pub mod context;
 pub mod delay;
 pub mod lobby;
+pub mod login;
 pub mod majsoul;
 pub mod manager;
 pub mod next_game;

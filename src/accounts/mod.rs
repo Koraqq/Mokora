@@ -50,6 +50,8 @@ const IDENTITY_FILE: &str = "account.json";
 const AVATAR_FILE: &str = "avatar.png";
 const LOGIN_FILE: &str = "login.json";
 const PROFILE_FILE: &str = "profile.json";
+/// How the account signs in (see `autoplay::login`).
+const LOGIN_METHOD_FILE: &str = "login-method.json";
 /// The startup account's file, in the accounts directory.
 const STARTUP_FILE: &str = "startup.json";
 /// The interface language last chosen, in the accounts directory: a newly
@@ -59,6 +61,12 @@ const UI_FILE: &str = "ui.json";
 /// [`UI_FILE`] so changing the language and dragging a chip from two account
 /// views at once cannot overwrite one another.
 const ORDER_FILE: &str = "order.json";
+/// The newest announcement any account's interface has shown. One answer for
+/// the whole app: every account has its own browser storage, so keeping it
+/// there made each account show the same announcement again.
+const ANNOUNCEMENT_FILE: &str = "announcement.json";
+/// The look one account shared with all of them (see [`Appearance`]).
+const APPEARANCE_FILE: &str = "appearance.json";
 /// The game page's layout one account shared with all of them, in the
 /// accounts directory (see [`share_layout`]).
 const LAYOUT_FILE: &str = "layout.json";
@@ -344,6 +352,160 @@ pub fn set_ui_language(lang: &str) -> Result<()> {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+struct AnnouncementSeen {
+    last_seen: Option<String>,
+}
+
+/// The ISO date of the newest announcement already shown to the player.
+pub fn announcement_seen() -> Option<String> {
+    announcement_seen_in(&crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)))
+}
+
+fn announcement_seen_in(accounts_root: &Path) -> Option<String> {
+    let bytes = std::fs::read(accounts_root.join(ANNOUNCEMENT_FILE)).ok()?;
+    serde_json::from_slice::<AnnouncementSeen>(&bytes)
+        .ok()?
+        .last_seen
+}
+
+/// Remember that announcements up to `date` were shown. The stored date only
+/// moves forward; the one now stored is returned.
+pub fn set_announcement_seen(date: &str) -> Result<String> {
+    set_announcement_seen_in(&crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)), date)
+}
+
+fn set_announcement_seen_in(accounts_root: &Path, date: &str) -> Result<String> {
+    anyhow::ensure!(
+        !date.is_empty()
+            && date.len() <= 32
+            && date.chars().all(|c| c.is_ascii_digit() || matches!(c, '-' | ':' | 'T' | 'Z' | '+' | '.')),
+        "invalid announcement date"
+    );
+    let newest = match announcement_seen_in(accounts_root) {
+        Some(stored) if stored.as_str() >= date => return Ok(stored),
+        _ => date.to_string(),
+    };
+    std::fs::create_dir_all(accounts_root)
+        .with_context(|| format!("creating {}", accounts_root.display()))?;
+    let path = accounts_root.join(ANNOUNCEMENT_FILE);
+    crate::util::write_atomic(
+        &path,
+        serde_json::to_vec(&AnnouncementSeen {
+            last_seen: Some(newest.clone()),
+        })?,
+    )
+    .with_context(|| format!("writing {}", path.display()))?;
+    Ok(newest)
+}
+
+/// The look of the app (theme, palette, scale) that every account shows when
+/// `shared` is on. Each account interface keeps its own look in its browser
+/// storage, so turning sharing off returns every account to its own.
+///
+/// The interface owns the shape of `custom`; it is only kept, never read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Appearance {
+    pub shared: bool,
+    pub mode: String,
+    pub palette: String,
+    pub custom: serde_json::Value,
+    pub scale: f64,
+    /// The order of the sidebar's pages (their ids); empty is the default.
+    #[serde(default)]
+    pub menu: Vec<String>,
+    /// The sizes (percent) the player added as buttons of their own, at most
+    /// [`MAX_SCALE_PRESETS`].
+    #[serde(default)]
+    pub presets: Vec<u32>,
+}
+
+const MAX_SCALE_PRESETS: usize = 10;
+
+/// The sidebar's pages, as the interface names them.
+const MENU_IDS: [&str; 9] = [
+    "play", "game", "bots", "profile", "history", "review", "logs", "appearance", "settings",
+];
+
+impl Default for Appearance {
+    fn default() -> Self {
+        Self {
+            shared: false,
+            mode: "system".into(),
+            palette: "default".into(),
+            custom: serde_json::Value::Null,
+            scale: 1.0,
+            menu: Vec::new(),
+            presets: Vec::new(),
+        }
+    }
+}
+
+const APPEARANCE_MAX_BYTES: usize = 64 * 1024;
+
+impl Appearance {
+    fn validated(mut self) -> Result<Self> {
+        anyhow::ensure!(
+            matches!(self.mode.as_str(), "light" | "dark" | "system"),
+            "invalid theme mode"
+        );
+        anyhow::ensure!(
+            matches!(
+                self.palette.as_str(),
+                "mokora" | "default" | "crimson" | "slate" | "custom"
+            ),
+            "invalid palette"
+        );
+        anyhow::ensure!(self.scale.is_finite(), "invalid scale");
+        self.scale = self.scale.clamp(0.7, 1.5);
+        anyhow::ensure!(
+            self.menu.iter().all(|id| MENU_IDS.contains(&id.as_str()))
+                && self.menu.iter().collect::<std::collections::HashSet<_>>().len() == self.menu.len(),
+            "invalid sidebar order"
+        );
+        anyhow::ensure!(
+            self.presets.len() <= MAX_SCALE_PRESETS
+                && self.presets.iter().all(|p| (70..=150).contains(p))
+                && self.presets.iter().collect::<std::collections::HashSet<_>>().len()
+                    == self.presets.len(),
+            "invalid size buttons"
+        );
+        anyhow::ensure!(
+            serde_json::to_vec(&self.custom)?.len() <= APPEARANCE_MAX_BYTES,
+            "custom theme is too large"
+        );
+        Ok(self)
+    }
+}
+
+/// The shared look; the default (not shared) when none was saved.
+pub fn appearance() -> Appearance {
+    appearance_in(&crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)))
+}
+
+fn appearance_in(accounts_root: &Path) -> Appearance {
+    std::fs::read(accounts_root.join(APPEARANCE_FILE))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Appearance>(&bytes).ok())
+        .and_then(|stored| stored.validated().ok())
+        .unwrap_or_default()
+}
+
+/// Save the shared look; the value now stored is returned.
+pub fn set_appearance(next: Appearance) -> Result<Appearance> {
+    set_appearance_in(&crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)), next)
+}
+
+fn set_appearance_in(accounts_root: &Path, next: Appearance) -> Result<Appearance> {
+    let next = next.validated()?;
+    std::fs::create_dir_all(accounts_root)
+        .with_context(|| format!("creating {}", accounts_root.display()))?;
+    let path = accounts_root.join(APPEARANCE_FILE);
+    crate::util::write_atomic(&path, serde_json::to_vec(&next)?)
+        .with_context(|| format!("writing {}", path.display()))?;
+    Ok(next)
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct AccountOrder {
     accounts: Vec<String>,
 }
@@ -532,6 +694,21 @@ pub fn read_login(config_path: &Path) -> Option<u64> {
     serde_json::from_slice::<Login>(&bytes)
         .ok()
         .map(|l| l.at_ms)
+}
+
+/// How `config_path`'s account signs in, if a login has shown it.
+pub fn read_login_setup(config_path: &Path) -> Option<crate::autoplay::login::LoginSetup> {
+    let bytes = std::fs::read(sibling(config_path, LOGIN_METHOD_FILE)).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
+pub fn write_login_setup(
+    config_path: &Path,
+    setup: &crate::autoplay::login::LoginSetup,
+) -> Result<()> {
+    let path = sibling(config_path, LOGIN_METHOD_FILE);
+    crate::util::write_atomic(&path, serde_json::to_vec(setup)?)
+        .with_context(|| format!("writing {}", path.display()))
 }
 
 /// The profile `config_path`'s account last showed (see `profile.json`).
@@ -781,6 +958,78 @@ first_run_completed = true
         mark_duplicates(&mut accounts);
         let flags: Vec<bool> = accounts.iter().map(|a| a.duplicate).collect();
         assert_eq!(flags, [true, true, false, false]);
+    }
+
+    #[test]
+    fn the_seen_announcement_is_shared_and_only_moves_forward() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(announcement_seen_in(dir.path()), None);
+        assert_eq!(set_announcement_seen_in(dir.path(), "2026-10-20").unwrap(), "2026-10-20");
+        assert_eq!(set_announcement_seen_in(dir.path(), "2026-09-01").unwrap(), "2026-10-20");
+        assert_eq!(set_announcement_seen_in(dir.path(), "2026-10-26").unwrap(), "2026-10-26");
+        assert_eq!(announcement_seen_in(dir.path()).as_deref(), Some("2026-10-26"));
+        assert!(set_announcement_seen_in(dir.path(), "../x").is_err());
+        assert!(!dir.path().join("announcement.json.tmp").exists());
+    }
+
+    #[test]
+    fn how_an_account_signs_in_is_saved_next_to_its_config() {
+        use crate::autoplay::login::{LoginMethod, LoginSetup};
+        let dir = tempfile::tempdir().unwrap();
+        let config = dir.path().join("config.toml");
+        assert_eq!(read_login_setup(&config), None);
+        let setup = LoginSetup {
+            method: LoginMethod::Facebook,
+            press: Some((9.5, 7.4)),
+            account: None,
+        };
+        write_login_setup(&config, &setup).unwrap();
+        assert_eq!(read_login_setup(&config), Some(setup));
+        std::fs::write(dir.path().join("login-method.json"), b"not json").unwrap();
+        assert_eq!(read_login_setup(&config), None);
+    }
+
+    #[test]
+    fn the_shared_look_is_validated_and_survives_a_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(appearance_in(dir.path()), Appearance::default());
+        let look = Appearance {
+            shared: true,
+            mode: "dark".into(),
+            palette: "custom".into(),
+            custom: serde_json::json!({ "light": { "primary": "#0a7d52" } }),
+            scale: 9.0,
+            menu: vec!["settings".into(), "play".into()],
+            presets: vec![90, 120],
+        };
+        let stored = set_appearance_in(dir.path(), look).unwrap();
+        assert_eq!(stored.scale, 1.5);
+        assert_eq!(appearance_in(dir.path()), stored);
+        let mokora = Appearance { palette: "mokora".into(), ..Appearance::default() };
+        assert_eq!(set_appearance_in(dir.path(), mokora.clone()).unwrap(), mokora);
+        set_appearance_in(dir.path(), stored.clone()).unwrap();
+        for menu in [vec!["play", "play"], vec!["home"]] {
+            let bad = Appearance {
+                menu: menu.into_iter().map(String::from).collect(),
+                ..Appearance::default()
+            };
+            assert!(set_appearance_in(dir.path(), bad).is_err());
+        }
+        for presets in [vec![69], vec![151], vec![90, 90], (70..81).collect::<Vec<u32>>()] {
+            let bad = Appearance { presets, ..Appearance::default() };
+            assert!(set_appearance_in(dir.path(), bad).is_err());
+        }
+        let ten = Appearance { presets: (70..80).collect(), ..Appearance::default() };
+        assert_eq!(set_appearance_in(dir.path(), ten.clone()).unwrap(), ten);
+        set_appearance_in(dir.path(), stored.clone()).unwrap();
+        let bad = Appearance { mode: "neon".into(), ..Appearance::default() };
+        assert!(set_appearance_in(dir.path(), bad).is_err());
+        let huge = Appearance {
+            custom: serde_json::Value::String("x".repeat(APPEARANCE_MAX_BYTES + 1)),
+            ..Appearance::default()
+        };
+        assert!(set_appearance_in(dir.path(), huge).is_err());
+        assert_eq!(appearance_in(dir.path()), stored);
     }
 
     #[test]

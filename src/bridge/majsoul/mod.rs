@@ -553,6 +553,13 @@ impl MajsoulBridge {
             (MessageType::Response, METHOD_OAUTH2_LOGIN)
             | (MessageType::Response, METHOD_LOGIN) => {
                 self.note_account_levels(&msg.payload);
+                // E-mail and phone accounts sign in with `login`; Google and
+                // Facebook ones are told apart by the window they open.
+                if msg.method_name.as_ref() == METHOD_LOGIN {
+                    if let Some(lobby) = &self.lobby_watch {
+                        lobby.note_login_setup(crate::autoplay::login::LoginSetup::password());
+                    }
+                }
                 Vec::new()
             }
             (MessageType::Request, METHOD_FETCH_CURRENT_MATCH_INFO) => {

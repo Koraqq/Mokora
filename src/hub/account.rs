@@ -149,8 +149,24 @@ async fn watch(hub: Hub, account: Arc<Account>) {
     let app = hub.app().clone();
     let mut was = (false, false);
     let mut profile_seen = 0;
+    // How this account signs in was learned on an earlier run.
+    if let Some(setup) = crate::accounts::read_login_setup(&config_path) {
+        lobby.restore_login_setup(setup);
+    }
+    let mut login_seen = lobby.login_changes();
     loop {
         tokio::time::sleep(crate::accounts::IDENTITY_POLL).await;
+
+        // How it signs in, saved whenever a login showed something new.
+        let login_changes = lobby.login_changes();
+        if login_changes != login_seen {
+            login_seen = login_changes;
+            if let Some(setup) = lobby.login_setup() {
+                if let Err(e) = crate::accounts::write_login_setup(&config_path, &setup) {
+                    warn!("accounts: could not save how the account signs in: {e:#}");
+                }
+            }
+        }
 
         // The profile, saved whenever the traffic moved it.
         let (changes, live) = lobby.profile();
