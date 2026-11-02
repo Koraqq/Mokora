@@ -44,7 +44,8 @@
       "other": "西/北入",
       "player": "玩家",
       "player_option": "{{name}}（{{count}} 场）",
-      "all_players": "全部玩家"
+      "all_players": "全部玩家",
+      "player_option_shared": "{{name}}（分享 - {{count}} 场）"
     },
     "rule": {
       "title": "PT 规则",
@@ -185,6 +186,65 @@
     "zoom": {
       "reset": "还原",
       "range": "第 {{from}}–{{to}} 场（共 {{total}} 场）"
+    },
+    "share": {
+      "button": "分享与导入",
+      "title": "分享与导入",
+      "description": "用代码分享一位用户的战绩，或导入别人分享的代码。",
+      "tab_share": "分享",
+      "tab_import": "导入",
+      "player": "分享哪位用户",
+      "no_players": "还没有可以分享的用户。",
+      "make": "生成分享代码",
+      "making": "生成中…",
+      "made_title": "当前有效的分享",
+      "code": "分享代码",
+      "copy": "复制",
+      "copied": "已复制代码",
+      "copy_failed": "无法复制，请自己选取代码",
+      "expires": "到期时间：{{time}}",
+      "revoke": "撤回",
+      "revoke_confirm": "撤回后这组代码会立刻失效。确定要撤回吗？",
+      "revoked": "已撤回",
+      "import_hint": "粘贴分享代码",
+      "lookup": "查询",
+      "looking": "查询中…",
+      "found": "找到的数据",
+      "range": "{{first}} 至 {{last}}",
+      "replaces": "你已经导入过这位玩家（{{count}} 场），导入后会用这一份替换。",
+      "no_reshare": "导入的数据只能在这里查看，不能再分享给别人。",
+      "import": "导入",
+      "importing": "导入中…",
+      "imported": "已导入“{{name}}”（{{count}} 场）",
+      "remove": "移除这位分享的玩家",
+      "remove_confirm": "要移除“{{name}}”的分享数据吗？只会删除你电脑上的这一份。",
+      "removed": "已移除",
+      "error": {
+        "no_games": "这位用户没有可以分享的对局。",
+        "no_name": "这位用户没有昵称，无法分享。",
+        "too_large": "数据太大，无法分享。",
+        "too_many_shares": "当前有效的分享太多，请先撤回旧的。",
+        "rate_limited": "分享太频繁，请稍后再试。",
+        "bad_response": "服务器的响应不正确，请稍后再试。",
+        "bad_id": "代码不正确。",
+        "signed_out": "请先登录 Mokora 账号（游戏画面右上角的钥匙图标）。",
+        "locked": "这个账号已被停用，请联系管理员。",
+        "blocked": "这个账号或这台电脑已被封禁，请联系管理员。",
+        "no_machine_id": "无法取得这台电脑的识别码。",
+        "network": "无法连接服务器，请稍后再试。",
+        "not_found": "找不到这组代码，可能已被撤回。",
+        "expired": "这组代码已经失效，请重新生成。",
+        "bad_code": "代码格式不对，请检查。",
+        "wrong_key": "代码不完整或有输错的字。",
+        "bad_data": "数据已损坏，请重新分享。",
+        "newer_format": "这份数据来自较新的 Mokora，请先更新。",
+        "lookup_lost": "请重新查询一次。",
+        "unknown": "发生错误，请稍后再试。",
+        "free_limit": "免费会员的分享次数（10 次）已经用完，付费会员不限次数。",
+        "cooldown": "这位用户 12 小时内已经分享过，请稍后再试。",
+        "unavailable": "服务器目前无法使用分享功能，请稍后再试。"
+      },
+      "free_left": "免费会员还可以分享 {{count}} 次"
     }
   },
   "review": {
@@ -987,6 +1047,14 @@
       "section_planned": "计划更新"
     },
     "entries": {
+      "v0_1_4": {
+        "title": "分享战绩与宏",
+        "share_records": "历史记录新增“分享与导入”。",
+        "macro": "新增宏功能。",
+        "sidebar_links": "侧边栏底部新增 Discord 与 GitHub 链接。",
+        "toolbar_lag": "修复了工具栏的卡顿问题。",
+        "other_games": "可能新增支持其他游戏。"
+      },
       "v0_1_3": {
         "title": "多屏布局修复",
         "multi_screen": "修复 0.1.2 安装包缺少多屏布局的问题。",

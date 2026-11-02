@@ -1651,6 +1651,132 @@ pub async fn get_game_history_record(id: String, state: Acct) -> CmdResult<Optio
         .map_err(|e| format!("{e:#}"))
 }
 
+/// Share one player's games: seal the newest ones (of `ids`, which must be
+/// this computer's own history — a set received from a friend is not in it, so
+/// it can never be shared on) and have the server keep them three days.
+/// `player` is the History page's key for the player, `name` their nickname.
+/// Returns the share with its code.
+#[tauri::command]
+pub async fn history_share_create(
+    ids: Vec<String>,
+    name: String,
+    player: String,
+    state: Acct,
+    license: License<'_>,
+) -> CmdResult<crate::history::share::MadeShare> {
+    use crate::history::share;
+    let store = state.history_store.clone();
+    let root = store.root().to_path_buf();
+    let records = tokio::task::spawn_blocking(move || {
+        ids.iter()
+            .filter_map(|id| store.get(id).transpose())
+            .collect::<anyhow::Result<Vec<GameRecord>>>()
+    })
+    .await
+    .map_err(|e| format!("history share join error: {e}"))?
+    .map_err(|e| format!("{e:#}"))?;
+    let payload = share::build(&name, &player, &records).map_err(|e| format!("{e:#}"))?;
+    let games = payload.records.len();
+    let name = payload.name.clone();
+    let (bytes, key) = share::seal(&payload).map_err(|e| format!("{e:#}"))?;
+    let made = license
+        .share_put(&share::source_stamp(&player), &bytes, games)
+        .await
+        .map_err(|e| e.ui_code())?;
+    if !share::valid_id(&made.id) {
+        return Err("bad_response".to_string());
+    }
+    let code = share::Code { id: made.id.clone(), key };
+    let entry = share::MadeShare {
+        id: made.id,
+        code: code.encode(),
+        name,
+        games,
+        made_at: share::now(),
+        expires_at: made.expires_at,
+        free_left: made.free_left,
+    };
+    share::made_add(&root, entry.clone()).map_err(|e| format!("{e:#}"))?;
+    Ok(entry)
+}
+
+/// The shares this computer made that still work.
+#[tauri::command]
+pub async fn history_share_made(state: Acct) -> CmdResult<Vec<crate::history::share::MadeShare>> {
+    let root = state.history_store.root().to_path_buf();
+    Ok(crate::history::share::made_list(&root, crate::history::share::now()))
+}
+
+/// Stop a share now, before its three days are up.
+#[tauri::command]
+pub async fn history_share_revoke(id: String, state: Acct, license: License<'_>) -> CmdResult<()> {
+    use crate::history::share;
+    if !share::valid_id(&id) {
+        return Err("bad_id".to_string());
+    }
+    match license.share_revoke(&id).await {
+        Ok(()) => {}
+        // Already gone there: just forget it here.
+        Err(crate::license::client::ServerError::Refused(code))
+            if matches!(code.as_str(), "not_found" | "expired") => {}
+        Err(e) => return Err(e.ui_code()),
+    }
+    share::made_remove(state.history_store.root(), &id).map_err(|e| format!("{e:#}"))
+}
+
+/// Look a code up: fetch what it names and open it, without keeping anything.
+/// What is found is held for [`history_import_confirm`].
+#[tauri::command]
+pub async fn history_import_lookup(
+    code: String,
+    state: Acct,
+) -> CmdResult<crate::history::share::Preview> {
+    use crate::history::share;
+    let code = share::Code::parse(&code).ok_or_else(|| "bad_code".to_string())?;
+    let bytes = crate::license::client::share_get(&code.id)
+        .await
+        .map_err(|e| e.ui_code())?;
+    let payload = share::open(&bytes, &code.key).map_err(|e| format!("{e:#}"))?;
+    let preview = share::preview(state.history_store.root(), &code.id, &payload);
+    share::hold(&code.id, payload);
+    Ok(preview)
+}
+
+/// Keep what the last lookup found. The set is then local: the code may stop
+/// working, it stays.
+#[tauri::command]
+pub async fn history_import_confirm(
+    id: String,
+    state: Acct,
+) -> CmdResult<crate::history::share::SharedSet> {
+    use crate::history::share;
+    let payload = share::take(&id).ok_or_else(|| "lookup_lost".to_string())?;
+    let root = state.history_store.root().to_path_buf();
+    tokio::task::spawn_blocking(move || share::keep(&root, &id, payload))
+        .await
+        .map_err(|e| format!("history import join error: {e}"))?
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// The players received from friends, with their games.
+#[tauri::command]
+pub async fn history_shared_list(state: Acct) -> CmdResult<Vec<crate::history::share::SharedSet>> {
+    let root = state.history_store.root().to_path_buf();
+    tokio::task::spawn_blocking(move || crate::history::share::shared_list(&root))
+        .await
+        .map_err(|e| format!("history shared join error: {e}"))
+}
+
+/// Forget a received player.
+#[tauri::command]
+pub async fn history_shared_remove(id: String, state: Acct) -> CmdResult<()> {
+    let root = state.history_store.root().to_path_buf();
+    tokio::task::spawn_blocking(move || crate::history::share::remove(&root, &id))
+        .await
+        .map_err(|e| format!("history shared join error: {e}"))?
+        .map_err(|e| format!("{e:#}"))
+}
+
 /// Full mjai event stream for a recorded game. `None` if the id is unknown.
 #[tauri::command]
 pub async fn get_game_history_events(
@@ -2239,6 +2365,13 @@ macro_rules! ipc_handlers {
             $crate::ipc::commands::compute_bot_hora_score,
             $crate::ipc::commands::list_game_history,
             $crate::ipc::commands::get_game_history_record,
+            $crate::ipc::commands::history_share_create,
+            $crate::ipc::commands::history_share_made,
+            $crate::ipc::commands::history_share_revoke,
+            $crate::ipc::commands::history_import_lookup,
+            $crate::ipc::commands::history_import_confirm,
+            $crate::ipc::commands::history_shared_list,
+            $crate::ipc::commands::history_shared_remove,
             $crate::ipc::commands::get_game_history_events,
             $crate::ipc::commands::history_deal_in_tiles,
             $crate::ipc::commands::history_against_stats,

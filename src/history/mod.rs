@@ -26,6 +26,7 @@ pub mod daily;
 pub mod deal_in;
 pub mod recorder;
 pub mod rounds;
+pub mod share;
 pub mod store;
 
 pub use store::HistoryStore;

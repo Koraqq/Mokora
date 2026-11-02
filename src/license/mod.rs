@@ -431,6 +431,40 @@ impl LicenseManager {
         result
     }
 
+    /// Have the server keep sealed share bytes for three days (see
+    /// `history::share`).
+    pub async fn share_put(
+        &self,
+        source: &str,
+        data: &[u8],
+        games: usize,
+    ) -> Result<client::ShareMade, ServerError> {
+        let _call = self.0.calls.lock().await;
+        let refresh = self
+            .stored()
+            .refresh
+            .ok_or(ServerError::code("signed_out"))?;
+        let result = client::share_put(&refresh, &self.machine()?, source, data, games).await;
+        if let Err(ServerError::Refused(code)) = &result {
+            self.on_refusal(code);
+        }
+        result
+    }
+
+    /// Take a share off the server before its three days are up.
+    pub async fn share_revoke(&self, id: &str) -> Result<(), ServerError> {
+        let _call = self.0.calls.lock().await;
+        let refresh = self
+            .stored()
+            .refresh
+            .ok_or(ServerError::code("signed_out"))?;
+        let result = client::share_revoke(&refresh, &self.machine()?, id).await;
+        if let Err(ServerError::Refused(code)) = &result {
+            self.on_refusal(code);
+        }
+        result
+    }
+
     /// Make this the license [`allows`] answers from.
     pub fn install(&self) {
         let _ = CURRENT.set(self.clone());

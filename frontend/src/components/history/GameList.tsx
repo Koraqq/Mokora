@@ -44,9 +44,12 @@ function modeLabel(record: GameRecord, t: (k: string) => string): string {
 export function GameList({
   records,
   rule,
+  readOnly = false,
 }: {
   records: GameRecord[];
   rule: PtRule;
+  /** Games received from a friend: they cannot be deleted from here. */
+  readOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<GameRecord | null>(null);
@@ -144,6 +147,7 @@ export function GameList({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="inline-flex gap-0.5">
+                        {!readOnly && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -155,6 +159,7 @@ export function GameList({
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

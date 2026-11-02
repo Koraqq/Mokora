@@ -1020,3 +1020,40 @@ export type SelfCheckReport = {
   latency_with_review: LatencyStats
   notes: string[]
 }
+
+/** A player received from a friend (`history_shared_list`): their games, kept
+ *  apart from this computer's own history. */
+export type SharedSet = {
+  id: string
+  name: string
+  source: string
+  /** Unix seconds. */
+  imported_at: number
+  records: GameRecord[]
+}
+
+/** A share this computer made that still works (`history_share_made`). */
+export type MadeShare = {
+  id: string
+  code: string
+  name: string
+  games: number
+  made_at: number
+  /** Unix seconds: when the code stops working. */
+  expires_at: number
+  /** What a free account had left to share (it may make ten); absent for a paid one. */
+  free_left?: number | null
+}
+
+/** What a code holds, before it is kept (`history_import_lookup`). */
+export type SharePreview = {
+  id: string
+  name: string
+  games: number
+  /** RFC3339 timestamps of the oldest and the newest game. */
+  first: string
+  last: string
+  expires_at: number
+  /** The games of the earlier set of the same player this would replace. */
+  replaces: number | null
+}

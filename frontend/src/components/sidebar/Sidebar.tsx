@@ -9,10 +9,11 @@ import { useSidebar, useSidebarSettings } from '@/hooks/useSidebar'
 import { useIsNarrow } from '@/hooks/useIsNarrow'
 import { MokoraIcon, MokoraWordmark } from '@/components/BrandLogo'
 import { Menu } from './Menu'
+import { SocialLinks } from './SocialLinks'
 
-// The sidebar is the logo and the pages, nothing else: accounts are switched
-// from the avatar on the play screen, the version and the release notes are in
-// the announcements, and the language is in Settings.
+// The sidebar is the logo and the pages, with the project's links at the foot:
+// accounts are switched from the avatar on the play screen, the version and the
+// release notes are in the announcements, and the language is in Settings.
 export function Sidebar() {
   const { t } = useTranslation()
   const isOpen = useSidebar((s) => s.isOpen)
@@ -142,6 +143,7 @@ export function Sidebar() {
             ))}
         </div>
         <Menu isOpen={open} />
+        {!ordering && <SocialLinks open={open} />}
         </div>
       </aside>
     </>

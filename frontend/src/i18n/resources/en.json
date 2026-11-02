@@ -44,7 +44,8 @@
       "other": "West / North overtime",
       "player": "Player",
       "player_option": "{{name}} ({{count}})",
-      "all_players": "All players"
+      "all_players": "All players",
+      "player_option_shared": "{{name}} (shared - {{count}})"
     },
     "rule": {
       "title": "PT Rule",
@@ -185,6 +186,65 @@
     "zoom": {
       "reset": "Reset",
       "range": "Games {{from}}–{{to}} of {{total}}"
+    },
+    "share": {
+      "button": "Share & import",
+      "title": "Share & import",
+      "description": "Share a player's results with a code, or import a code that was shared.",
+      "tab_share": "Share",
+      "tab_import": "Import",
+      "player": "Player to share",
+      "no_players": "There is no player to share yet.",
+      "make": "Make a share code",
+      "making": "Making…",
+      "made_title": "Shares in force",
+      "code": "Share code",
+      "copy": "Copy",
+      "copied": "Code copied",
+      "copy_failed": "Could not copy; select the code and copy it yourself",
+      "expires": "Expires: {{time}}",
+      "revoke": "Revoke",
+      "revoke_confirm": "The code stops working at once. Revoke it?",
+      "revoked": "Revoked",
+      "import_hint": "Paste the share code",
+      "lookup": "Look up",
+      "looking": "Looking up…",
+      "found": "Found",
+      "range": "{{first}} to {{last}}",
+      "replaces": "You have already imported this player ({{count}} games); importing replaces that set with this one.",
+      "no_reshare": "Imported data can only be viewed here; it cannot be shared on.",
+      "import": "Import",
+      "importing": "Importing…",
+      "imported": "Imported \"{{name}}\" ({{count}} games)",
+      "remove": "Remove this shared player",
+      "remove_confirm": "Remove the shared data of \"{{name}}\"? Only the copy on this computer is deleted.",
+      "removed": "Removed",
+      "error": {
+        "no_games": "This player has no games to share.",
+        "no_name": "This player has no nickname, so cannot be shared.",
+        "too_large": "The data is too large to share.",
+        "too_many_shares": "Too many shares are in force; revoke an old one first.",
+        "rate_limited": "Sharing too often; try again in a while.",
+        "bad_response": "The server's answer was not right; try again later.",
+        "bad_id": "The code is not right.",
+        "signed_out": "Sign in to your Mokora account first (the key icon at the top right of the game screen).",
+        "locked": "This account has been suspended; contact the administrator.",
+        "blocked": "This account or this computer has been blocked; contact the administrator.",
+        "no_machine_id": "Could not get this computer's identifier.",
+        "network": "Could not reach the server; try again later.",
+        "not_found": "This code was not found; it may have been revoked.",
+        "expired": "This code has expired; make a new one.",
+        "bad_code": "The code is not in the right form; check it.",
+        "wrong_key": "The code is incomplete or has a typo.",
+        "bad_data": "The data is damaged; share it again.",
+        "newer_format": "This data comes from a newer Mokora; update first.",
+        "lookup_lost": "Look it up again.",
+        "unknown": "Something went wrong; try again later.",
+        "free_limit": "A free member may share 10 times; those are used up. Paid members have no limit.",
+        "cooldown": "This player was shared in the last 12 hours; try again later.",
+        "unavailable": "The server cannot take shares right now; try again later."
+      },
+      "free_left": "{{count}} shares left for a free member"
     }
   },
   "review": {
@@ -987,6 +1047,14 @@
       "section_planned": "Planned"
     },
     "entries": {
+      "v0_1_4": {
+        "title": "Sharing records and macros",
+        "share_records": "History has a new \"Share & import\".",
+        "macro": "Added macros.",
+        "sidebar_links": "Discord and GitHub links at the bottom of the sidebar.",
+        "toolbar_lag": "Fixed stuttering in the top toolbar.",
+        "other_games": "Support for other games may be added."
+      },
       "v0_1_3": {
         "title": "Multi-screen layouts restored",
         "multi_screen": "Fixed the 0.1.2 installer missing the multi-screen layouts.",

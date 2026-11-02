@@ -14,6 +14,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { invoke } from '@tauri-apps/api/core'
+import { Trash2 } from 'lucide-react'
+import { toast } from '@/components/ui/sonner'
 import { listen } from '@/lib/tauri'
 
 import {
@@ -31,12 +33,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BotTabs } from '@/components/history/BotTabs'
 import { CumulativePtChart } from '@/components/history/CumulativePtChart'
 import { DayPicker } from '@/components/history/DayPicker'
 import { DealInTiles } from '@/components/history/DealInTiles'
 import { KindToggles } from '@/components/history/KindToggles'
+import { ShareDialog } from '@/components/history/ShareDialog'
 import { GameList } from '@/components/history/GameList'
 import { PtRuleSelector } from '@/components/history/PtRuleSelector'
 import { RankPieChart } from '@/components/history/RankPieChart'
@@ -46,6 +50,7 @@ import { fetchAccounts, ownPlayerKey } from '@/lib/accounts'
 import { recordsOfBot, type BotView } from '@/lib/historyBots'
 import { gameDays, recordsOfDay } from '@/lib/historyDays'
 import { listPlayers, playerKeys, recordsOfPlayer } from '@/lib/historyPlayers'
+import { isSharedKey, recordsOfShared, sharedKey, sharedPlayers } from '@/lib/historyShare'
 import { RANKED_ONLY, recordsOfKinds, type KindView } from '@/lib/historyKinds'
 import { aggregateStats } from '@/lib/historyStats'
 import {
@@ -54,7 +59,7 @@ import {
   withCurrentRank,
 } from '@/lib/ptCalc'
 import { ALL_PLAYERS, useHistoryStore } from '@/stores/historyStore'
-import type { GameRecord, KyokuMode, Platform } from '@/types'
+import type { GameRecord, KyokuMode, Platform, SharedSet } from '@/types'
 
 const ANY = '__any__'
 
@@ -67,6 +72,9 @@ export function History() {
   const player = useHistoryStore((s) => s.player)
   const setPlayer = useHistoryStore((s) => s.setPlayer)
   const setRecords = useHistoryStore((s) => s.setRecords)
+  // The players received from friends: kept apart from the history, listed in
+  // the picker, in nobody's "all players".
+  const [shared, setShared] = useState<SharedSet[]>([])
 
   // The store is shared by every account's Mokora (see `src/accounts/`), and
   // only this one's own games arrive as events — so re-read it whenever the
@@ -79,6 +87,11 @@ export function History() {
         offset: 0,
       })
         .then(setRecords)
+        .catch(() => {
+          /* keep what is loaded */
+        })
+      invoke<SharedSet[]>('history_shared_list')
+        .then(setShared)
         .catch(() => {
           /* keep what is loaded */
         })
@@ -115,7 +128,11 @@ export function History() {
   // Unset (or a player whose games were all deleted) means this Mokora's own
   // login, or — before it has a game, or a login — the one who played last.
   const keys = useMemo(() => playerKeys(records), [records])
-  const players = useMemo(() => listPlayers(records, keys), [records, keys])
+  const ownPlayers = useMemo(() => listPlayers(records, keys), [records, keys])
+  const players = useMemo(
+    () => [...ownPlayers, ...sharedPlayers(shared)],
+    [ownPlayers, shared],
+  )
   const activePlayer =
     player === ALL_PLAYERS || players.some((p) => p.key === player)
       ? (player as string)
@@ -123,12 +140,19 @@ export function History() {
         ? (ownPlayer as string)
         : (players[0]?.key ?? ALL_PLAYERS)
 
-  const filtered = useMemo(
+  const activeShared = isSharedKey(activePlayer)
+  // The active player's games: a received set's, or this computer's own.
+  const ofPlayer = useMemo(
     () =>
-      recordsOfPlayer(records, keys, activePlayer).filter((r) =>
-        matchFilter(r, filter),
-      ),
-    [records, filter, keys, activePlayer],
+      activeShared
+        ? recordsOfShared(shared, activePlayer)
+        : recordsOfPlayer(records, keys, activePlayer),
+    [activeShared, shared, records, keys, activePlayer],
+  )
+
+  const filtered = useMemo(
+    () => ofPlayer.filter((r) => matchFilter(r, filter)),
+    [ofPlayer, filter],
   )
 
   // "Current" room / rank for an auto PT rule: the player's newest game in
@@ -137,11 +161,9 @@ export function History() {
     () =>
       withCurrentRank(
         rule,
-        recordsOfPlayer(records, keys, activePlayer).filter(
-          (r) => r.num_players === numPlayers,
-        ),
+        ofPlayer.filter((r) => r.num_players === numPlayers),
       ),
-    [rule, records, keys, activePlayer, numPlayers],
+    [rule, ofPlayer, numPlayers],
   )
 
   // The charts' and stats' view, set in the PT-rule card: which bot's games
@@ -177,6 +199,16 @@ export function History() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ShareDialog
+            players={ownPlayers}
+            records={records}
+            keys={keys}
+            activeKey={activePlayer}
+            onImported={(set) => {
+              setShared((list) => [set, ...list.filter((s) => s.id !== set.id)])
+              setPlayer(sharedKey(set.id))
+            }}
+          />
           {players.length > 0 && (
             <Select value={activePlayer} onValueChange={setPlayer}>
               <SelectTrigger
@@ -189,10 +221,12 @@ export function History() {
               <SelectContent>
                 {players.map((p) => (
                   <SelectItem key={p.key} value={p.key}>
-                    {t('history.filter.player_option', {
-                      name: p.name,
-                      count: p.games,
-                    })}
+                    {t(
+                      p.shared
+                        ? 'history.filter.player_option_shared'
+                        : 'history.filter.player_option',
+                      { name: p.name, count: p.games },
+                    )}
                   </SelectItem>
                 ))}
                 <SelectItem value={ALL_PLAYERS}>
@@ -200,6 +234,26 @@ export function History() {
                 </SelectItem>
               </SelectContent>
             </Select>
+          )}
+          {activeShared && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('history.share.remove')}
+              title={t('history.share.remove')}
+              onClick={() => {
+                const set = shared.find((s) => sharedKey(s.id) === activePlayer)
+                if (!set || !window.confirm(t('history.share.remove_confirm', { name: set.name }))) return
+                invoke('history_shared_remove', { id: set.id })
+                  .then(() => {
+                    setShared((list) => list.filter((s) => s.id !== set.id))
+                    toast.success(t('history.share.removed'))
+                  })
+                  .catch((e) => toast.error(String(e)))
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           )}
           <Tabs
             value={String(numPlayers)}
@@ -266,7 +320,7 @@ export function History() {
 
       <DealInTiles records={shown} />
 
-      <GameList records={filtered} rule={ptRule} />
+      <GameList records={filtered} rule={ptRule} readOnly={activeShared} />
     </div>
   )
 }

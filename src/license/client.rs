@@ -258,3 +258,64 @@ pub async fn pro_manifest(
     )
     .await
 }
+
+/// What the server answers when it keeps a share.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ShareMade {
+    /// The eight-character id that goes into the code.
+    pub id: String,
+    /// When it stops answering (unix seconds): three days on.
+    pub expires_at: i64,
+    /// A free account's shares still to make (it may make ten in all); `None`
+    /// for a paid one.
+    #[serde(default)]
+    pub free_left: Option<i64>,
+}
+
+/// Keep `data` (sealed bytes, see `history::share`) for three days. Only a
+/// signed-in account may. `source` is the stamp of the player shared: a free
+/// account may share ten times in all, a paid one any number of times but each
+/// player once in twelve hours (`free_limit`, `cooldown`).
+pub async fn share_put(
+    refresh: &str,
+    machine: &str,
+    source: &str,
+    data: &[u8],
+    games: usize,
+) -> Result<ShareMade, ServerError> {
+    use base64::Engine as _;
+    post(
+        "/v1/share",
+        json!({
+            "refresh": refresh,
+            "machine": machine,
+            "source": source,
+            "games": games,
+            "data": base64::engine::general_purpose::STANDARD.encode(data),
+        }),
+    )
+    .await
+}
+
+/// The sealed bytes of share `id`. No account is needed: the code is the key.
+pub async fn share_get(id: &str) -> Result<Vec<u8>, ServerError> {
+    use base64::Engine as _;
+    #[derive(Deserialize)]
+    struct Body {
+        data: String,
+    }
+    let body: Body = post("/v1/share/get", json!({ "id": id })).await?;
+    base64::engine::general_purpose::STANDARD
+        .decode(body.data)
+        .map_err(|e| ServerError::Network(e.to_string()))
+}
+
+/// Take share `id` off the server now. Only the account that made it may.
+pub async fn share_revoke(refresh: &str, machine: &str, id: &str) -> Result<(), ServerError> {
+    let _: serde_json::Value = post(
+        "/v1/share/revoke",
+        json!({ "refresh": refresh, "machine": machine, "id": id }),
+    )
+    .await?;
+    Ok(())
+}

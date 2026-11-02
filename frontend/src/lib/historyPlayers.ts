@@ -19,6 +19,8 @@ export type HistoryPlayer = {
   name: string
   games: number
   lastPlayed: string
+  /** A player received from a friend (`lib/historyShare`), not recorded here. */
+  shared?: boolean
 }
 
 function nickname(r: GameRecord): string | null {
