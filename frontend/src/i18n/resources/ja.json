@@ -1003,6 +1003,12 @@
       "section_planned": "今後の予定"
     },
     "entries": {
+      "v0_1_3": {
+        "title": "マルチ画面レイアウトの修正",
+        "multi_screen": "0.1.2 のインストーラーにマルチ画面レイアウトが含まれていなかった問題を修正しました。",
+        "share_records": "対局記録の共有を予定しています。",
+        "other_games": "他のゲームへの対応を追加する可能性があります。"
+      },
       "v0_1_2": {
         "title": "Linux 対応と外観の更新",
         "linux_support": "Debian 系 Linux に対応し、.deb パッケージと .AppImage を提供します。",

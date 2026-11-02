@@ -987,6 +987,12 @@
       "section_planned": "计划更新"
     },
     "entries": {
+      "v0_1_3": {
+        "title": "多屏布局修复",
+        "multi_screen": "修复 0.1.2 安装包缺少多屏布局的问题。",
+        "share_records": "可分享对战记录。",
+        "other_games": "可能新增支持其他游戏。"
+      },
       "v0_1_2": {
         "title": "Linux 支持与外观更新",
         "linux_support": "支持 Linux 的 Debian 系统，提供 .deb 安装包与 .AppImage。",

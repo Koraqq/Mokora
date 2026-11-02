@@ -987,6 +987,12 @@
       "section_planned": "Planned"
     },
     "entries": {
+      "v0_1_3": {
+        "title": "Multi-screen layouts restored",
+        "multi_screen": "Fixed the 0.1.2 installer missing the multi-screen layouts.",
+        "share_records": "Sharing game records is planned.",
+        "other_games": "Support for other games may be added."
+      },
       "v0_1_2": {
         "title": "Linux support and appearance update",
         "linux_support": "Added Linux support for Debian-based systems, with .deb and .AppImage packages.",

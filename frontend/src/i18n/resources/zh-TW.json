@@ -987,6 +987,12 @@
       "section_planned": "預計更新"
     },
     "entries": {
+      "v0_1_3": {
+        "title": "多螢幕布局修復",
+        "multi_screen": "修正 0.1.2 安裝檔缺少多螢幕布局的問題。",
+        "share_records": "可分享對戰紀錄。",
+        "other_games": "可能新增支援其他遊戲。"
+      },
       "v0_1_2": {
         "title": "Linux 支援與外觀更新",
         "linux_support": "支援 Linux 的 Debian 系統，提供 .deb 安裝檔與 .AppImage。",

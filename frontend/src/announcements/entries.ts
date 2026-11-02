@@ -62,6 +62,15 @@ export type AnnouncementEntry = {
  */
 export const ANNOUNCEMENTS: AnnouncementEntry[] = [
   {
+    id: 'v0_1_3',
+    date: '2026-11-02',
+    version: '0.1.3',
+    notes: {
+      fixed: ['multi_screen'],
+      planned: ['share_records', 'other_games'],
+    },
+  },
+  {
     id: 'v0_1_2',
     date: '2026-10-30',
     version: '0.1.2',
