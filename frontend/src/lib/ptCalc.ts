@@ -1,5 +1,5 @@
 // Pure PT (cumulative-points) calculation. Majsoul's rule plus a custom
-// escape hatch (Tenhou's is parked: `_parked/other-games`):
+// escape hatch:
 //
 // - Majsoul: `(score - start) / 1000 + uma + dan_bonus(rank, lobby, dan, mode)`
 //   * uma 4p = [+15, +5, -5, -15], 3p = [+15, 0, -15]

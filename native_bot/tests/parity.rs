@@ -1,6 +1,6 @@
 //! End-to-end numeric parity: the candle loader must reproduce the PyTorch
-//! (folded) reference logits for a deterministic input. The reference JSON is
-//! produced by `train/parity_check.py` next to the shipped weights.
+//! (folded) reference logits for a deterministic input. The reference JSON
+//! sits next to the shipped weights.
 #![cfg(feature = "infer")]
 
 use std::fs;

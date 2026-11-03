@@ -1047,6 +1047,13 @@
       "section_planned": "计划更新"
     },
     "entries": {
+      "v0_1_5": {
+        "title": "安全性更新",
+        "bot_switch_motion": "右上角 AI 切换在三人与四人模型之间切换时，会显示切换效果。",
+        "game_page_commands": "修复游戏画面中的网页可以调用 Mokora 内部功能的安全性问题。",
+        "account_refresh": "开启多个账号时，后台不再反复读取账号数据。",
+        "bloodshed_ai": "预计新增赤羽之战（四川麻将）的 AI 模型。"
+      },
       "v0_1_4": {
         "title": "分享战绩与宏",
         "share_records": "历史记录新增“分享与导入”。",

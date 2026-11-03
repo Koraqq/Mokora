@@ -1,6 +1,6 @@
 //! The `V2` planes must come out the same whichever way the game state was
-//! built. The `arena` lets riichienv-core step the game itself; the extractor
-//! and live play drive a state with mjai events instead, and riichienv-core
+//! built. riichienv-core can step the game itself, or live play drives a
+//! state with mjai events instead, and riichienv-core
 //! records different things on the two paths (tedashi, the riichi-declaring
 //! discard, passed wins). This plays seeded sanma games on the stepping path,
 //! replays their mjai log on the event path, and compares the V2 planes at

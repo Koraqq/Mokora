@@ -3,8 +3,7 @@
 //! `PlatformAutoplay` is the only thing `AutoplayManager` knows about: a
 //! platform plans [`Step`]s from a bot decision, the manager runs them. A new
 //! game adds an impl and, if its client is not a canvas, new `Step` kinds with
-//! their executors (see `_parked/other-games/README.md` for two worked
-//! examples: a DOM-driven web client and a frame-injected native one).
+//! their executors.
 
 use crate::autoplay::delay::{BudgetSnapshot, DecisionProbs};
 use crate::config::{DelayModelConfig, MajsoulAutoplayConfig};

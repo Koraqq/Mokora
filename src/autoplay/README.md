@@ -13,9 +13,7 @@ because of that. What every route shares is the delay model, because a
 decision executed the instant the bot answers is the most obvious tell there
 is.
 
-Other games plug in through `PlatformAutoplay` (see "Adding a game" below);
-`_parked/other-games/` holds a DOM-driven web client (Tenhou) and a
-frame-injected native one (Riichi City) as worked examples.
+Other games plug in through `PlatformAutoplay` (see "Adding a game" below).
 
 ## Module map
 
@@ -57,9 +55,6 @@ real `hora` arrived to find a pass already pressed into its window.
 3. Add the field and the match arm in `AutoplayManager::handle_bot_response`.
 4. A bridge slot the planner needs (hand indices, a decision window) goes in
    `BridgeHooks` and `AutoplayContext`.
-
-The two implementations that were here are kept, with everything they touched
-and a patch of the shared-file changes, in `_parked/other-games/`.
 
 ## Next game (`next_game.rs`, Majsoul)
 

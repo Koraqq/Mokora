@@ -11,8 +11,10 @@
 //!   `get_status` for a snapshot.
 //! - **Inbound (frontend → backend)**: `#[tauri::command]` handlers in
 //!   [`commands`]; register them via the `ipc_handlers!()` macro on the
-//!   `tauri::Builder`. A command takes [`crate::hub::Acct`] to get the state of
-//!   the account whose interface called it.
+//!   `tauri::Builder`, wrapped in [`guard::own_pages_only`] so only Mokora's
+//!   own pages reach them (never a game's). A command takes
+//!   [`crate::hub::Acct`] to get the state of the account whose interface
+//!   called it.
 //!
 //! Event names (kebab-case, Tauri convention):
 //!
@@ -34,6 +36,7 @@
 
 pub mod capture_supervisor;
 pub mod commands;
+pub mod guard;
 pub mod overlay;
 pub mod state;
 

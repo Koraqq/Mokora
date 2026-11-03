@@ -1,6 +1,5 @@
 // Static lookup tables for the Majsoul PT formula, transcribed from the
-// user-provided spec. (Tenhou's tables are parked with the rest of Tenhou:
-// `_parked/other-games/patches/pt-tenhou.patch`.)
+// user-provided spec.
 //
 // Layout choices:
 // - Majsoul rank/lobby tables are split by player count. The 3p schedule

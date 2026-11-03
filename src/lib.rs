@@ -142,7 +142,7 @@ pub fn run() {
                 )
                 .build(),
         )
-        .invoke_handler(crate::ipc_handlers!())
+        .invoke_handler(ipc::guard::own_pages_only(crate::ipc_handlers!()))
         .setup(move |app| {
             // The Python + uv runtime is located here because bundled binaries
             // live under `<resource_dir>/runtime/...`, which is only resolvable

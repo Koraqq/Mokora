@@ -15,9 +15,7 @@
 //! one plan; Mahjong Soul holds its reach popup open for the tile.
 //!
 //! Other games plug in the same way (a `PlatformAutoplay` impl plus whatever
-//! `Step` kinds their client needs); `_parked/other-games/` holds a DOM-driven
-//! web client (Tenhou) and a frame-injected native one (Riichi City) as worked
-//! examples, with the list of what to put back.
+//! `Step` kinds their client needs).
 //!
 //! Every response arriving here is a decision the riichi engine asked for —
 //! `bot::manager` does not flush to the bot otherwise — so an `MjaiEvent::None`

@@ -59,10 +59,6 @@ list of every constructor between here and the capture backend.
 5. The history tag (`schema::Platform`) and its `MatchInfo` variant already
    exist for Tenhou and Riichi City; a new game adds its own.
 
-Two finished bridges for other games — Tenhou (plain JSON over WS) and Riichi
-City (JSON inside a 15-byte binary header) — are parked in
-`_parked/other-games/`, with their READMEs.
-
 ## Existing bridges
 
 - `majsoul/` — Majsoul (lq.* protobuf over WS). `parser.rs` decodes raw

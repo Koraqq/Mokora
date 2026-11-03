@@ -1,5 +1,5 @@
-//! candle CNN inference. Architecture mirrors `train/train.py` **after** its
-//! BatchNorm-folding export, so this side is pure Conv1d + Linear (no BN op).
+//! candle CNN inference. The weights come with their BatchNorm already folded
+//! into the convolutions, so this side is pure Conv1d + Linear (no BN op).
 //!
 //! Weights are loaded from a `.safetensors` buffer whose keys are:
 //! `conv_in.{weight,bias}`, `res.{i}.conv{1,2}.{weight,bias}`,
@@ -11,8 +11,7 @@ use candle_nn::{conv1d, linear, Conv1d, Conv1dConfig, Linear, Module, VarBuilder
 use crate::obs::Features;
 use crate::Geometry;
 
-/// Backbone width / depth / head of the original built-in weights — the
-/// defaults `train/train.py` trains with. A weights file is not bound to
+/// Backbone width / depth / head of the original built-in weights. A weights file is not bound to
 /// them: [`Model::from_safetensors`] reads the size it was trained at off its
 /// own tensors, so weights of any width / depth load (and can be compared
 /// against each other).
@@ -86,7 +85,7 @@ pub struct Model {
     fc: Linear,
     head: Linear,
     /// The danger head (`danger.conv1`, `danger.conv2`, `danger.out`), when
-    /// the weights carry one (`train/train_danger.py`): for every opponent and
+    /// the weights carry one: for every opponent and
     /// tile, how likely that opponent would win on it. It reads the feature
     /// map after the residual blocks beside the input planes, tile by tile.
     danger: Option<[Conv1d; 3]>,

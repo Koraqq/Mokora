@@ -60,9 +60,7 @@ bridge to them.
   embedded pure-Rust `native_bot` candle model and answers every decision
   with it. `native::build(name, actor_id, num_players)` constructs it;
   `BotManager::spawn_runner` calls it for the reserved names, bypassing the
-  registry / venv path entirely. (The remote-inference path that used to sit
-  beside it — `api`, `purchase`, the `Breaker` — is parked under
-  `_parked/api-key/`.)
+  registry / venv path entirely.
 - `supervisor` — `run_bot_manager`: constructs the `BotManager` and drives
   its run loop off the `PostTrackerBus`. Tolerates a missing Python runtime
   — the built-in `native` bots need none.

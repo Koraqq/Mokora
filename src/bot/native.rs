@@ -9,8 +9,8 @@
 //! there is no venv, no `uv sync`, and nothing to install.
 //!
 //! Four reserved bot names select it: [`MORA_3P`] (sanma only) and
-//! [`MORA_4P`] (yonma only), the models trained on the richer V2 feature planes
-//! (see `native_bot/train/README.md`), and [`YAKUMAN_3P`] / [`YAKUMAN_4P`],
+//! [`MORA_4P`] (yonma only), the models trained on the richer V2 feature planes,
+//! and [`YAKUMAN_3P`] / [`YAKUMAN_4P`],
 //! the same weights with every decision handed to the yakuman planner
 //! (`native_bot::yakuman`). `BotManager::spawn_runner` recognises them
 //! and constructs this runner directly, bypassing the `bot.py`/registry path.

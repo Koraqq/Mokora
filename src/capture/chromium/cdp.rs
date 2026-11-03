@@ -301,7 +301,7 @@ const TELEMETRY_URL_PATTERN: &str = "*.log.aliyuncs.com/*";
 /// With `block_telemetry`, ask the browser to hand us the game's analytics
 /// beacons before they are sent: paused at the *request* stage, so they never
 /// leave the machine. (A game whose client script must be rewritten on its way
-/// in adds a *response*-stage pattern here — see `_parked/other-games/`.)
+/// in adds a *response*-stage pattern here.)
 async fn enable_interception(page: &Page, block_telemetry: bool) -> Result<()> {
     use chromiumoxide::cdp::browser_protocol::fetch::{EnableParams, RequestPattern, RequestStage};
     let mut patterns = Vec::new();

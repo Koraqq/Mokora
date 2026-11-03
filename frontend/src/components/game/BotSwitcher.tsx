@@ -13,6 +13,10 @@
 // Yakuman is a paid feature, its planner in the paid module: until both are
 // there its rows carry a lock, choosing one says so (or that the module is
 // still on its way), and a saved Yakuman shows (and plays) as Mora.
+//
+// The two lists often hold the same names, so a switch between the rows is
+// shown as one: the row's highlight slides to the other row, and the list
+// slides in from the side it came from (not on opening, which fades in).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -49,6 +53,8 @@ export function BotSwitcher({ minLeft }: { minLeft: number }) {
   const setConfig = useConfigStore((s) => s.setConfig)
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<Mode>('3p')
+  // Which way the last switch went, and whether there was one since opening.
+  const [switched, setSwitched] = useState<'down' | 'up' | null>(null)
   // The panel's left edge relative to the button's box, and its width.
   const [place, setPlace] = useState({ left: 0, width: PANEL_WIDTH })
   const box = useRef<HTMLDivElement>(null)
@@ -73,9 +79,16 @@ export function BotSwitcher({ minLeft }: { minLeft: number }) {
     }
   }, [setList, setConfig])
 
+  const choose = (m: Mode) => {
+    if (m === mode) return
+    setSwitched(MODES.indexOf(m) > MODES.indexOf(mode) ? 'down' : 'up')
+    setMode(m)
+  }
+
   const show = () => {
     window.clearTimeout(leaveTimer.current)
     if (!open) {
+      setSwitched(null)
       void load()
       const r = box.current?.getBoundingClientRect()
       if (r) {
@@ -175,57 +188,81 @@ export function BotSwitcher({ minLeft }: { minLeft: number }) {
           role="menu"
         >
           <div className="flex w-28 shrink-0 flex-col p-1">
-            {MODES.map((m) => (
-              <button
-                key={m}
-                type="button"
-                role="menuitem"
-                onMouseEnter={() => setMode(m)}
-                onClick={() => setMode(m)}
-                className={cn(
-                  'flex items-center justify-between rounded px-2 py-1.5 text-sm transition-colors',
-                  mode === m ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/60',
-                )}
-              >
-                <span>{t(`play.bot_${m}`)}</span>
-                <span className="ml-auto mr-1 text-xs tabular-nums text-muted-foreground">
-                  {choicesFor(m).length}
-                </span>
-                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-              </button>
-            ))}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col border-l border-border p-1">
-            {choices.length === 0 && (
-              <span className="flex min-h-[4.5rem] flex-1 items-center justify-center px-2 text-center text-xs text-muted-foreground">
-                {t('play.bot_none')}
-              </span>
-            )}
-            {choices.map((b) => {
-              const active = activeOf(mode) === b.name
-              return (
+            <div className="relative flex flex-col">
+              {/* The chosen row's highlight, one row tall, sliding between them. */}
+              <span
+                aria-hidden
+                data-testid="bot-mode-highlight"
+                className="pointer-events-none absolute inset-x-0 top-0 rounded bg-muted transition-transform duration-200 ease-out motion-reduce:transition-none"
+                style={{
+                  height: `${100 / MODES.length}%`,
+                  transform: `translateY(${MODES.indexOf(mode) * 100}%)`,
+                }}
+              />
+              {MODES.map((m) => (
                 <button
-                  key={b.name}
+                  key={m}
                   type="button"
-                  role="menuitemradio"
-                  aria-checked={active}
-                  onClick={() => void pick(mode, b.name)}
-                  title={shut(b.name) ? lockText : undefined}
+                  role="menuitem"
+                  aria-current={mode === m}
+                  onMouseEnter={() => choose(m)}
+                  onClick={() => choose(m)}
                   className={cn(
-                    'flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted',
-                    active && 'text-foreground',
-                    shut(b.name) && 'opacity-60',
+                    'relative flex items-center justify-between rounded px-2 py-1.5 text-sm transition-colors',
+                    mode === m ? 'text-foreground' : 'text-muted-foreground hover:bg-muted/60',
                   )}
                 >
-                  <span className="truncate">{label(b)}</span>
-                  {shut(b.name) ? (
-                    <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  ) : (
-                    active && <Check className="h-3.5 w-3.5 shrink-0" />
-                  )}
+                  <span>{t(`play.bot_${m}`)}</span>
+                  <span className="ml-auto mr-1 text-xs tabular-nums text-muted-foreground">
+                    {choicesFor(m).length}
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
                 </button>
-              )
-            })}
+              ))}
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border p-1">
+            <div
+              key={mode}
+              data-testid="bot-list"
+              className={cn(
+                'flex min-w-0 flex-1 flex-col',
+                switched && 'animate-in fade-in duration-200 motion-reduce:animate-none',
+                switched === 'down' && 'slide-in-from-bottom-2',
+                switched === 'up' && 'slide-in-from-top-2',
+              )}
+            >
+              {choices.length === 0 && (
+                <span className="flex min-h-[4.5rem] flex-1 items-center justify-center px-2 text-center text-xs text-muted-foreground">
+                  {t('play.bot_none')}
+                </span>
+              )}
+              {choices.map((b) => {
+                const active = activeOf(mode) === b.name
+                return (
+                  <button
+                    key={b.name}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => void pick(mode, b.name)}
+                    title={shut(b.name) ? lockText : undefined}
+                    className={cn(
+                      'flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted',
+                      active && 'text-foreground',
+                      shut(b.name) && 'opacity-60',
+                    )}
+                  >
+                    <span className="truncate">{label(b)}</span>
+                    {shut(b.name) ? (
+                      <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    ) : (
+                      active && <Check className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}

@@ -8,8 +8,8 @@
 //! longer ron.
 //!
 //! riichienv-core also records tedashi and the riichi-declaring discard only
-//! when the engine itself steps the game (the `arena`); a state driven by mjai
-//! events (the extractor and live play) leaves both empty. The timeline holds
+//! when the engine itself steps the game; a state driven by mjai events (live
+//! play) leaves both empty. The timeline holds
 //! them for every path instead: from the events' `tsumogiri` / `reach`
 //! ([`DiscardTimeline::note_mjai`]) where there are events, from the state
 //! where it has them.

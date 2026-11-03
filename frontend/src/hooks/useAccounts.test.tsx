@@ -48,4 +48,55 @@ describe('useAccounts', () => {
     expect(fetchAccounts).toHaveBeenCalledTimes(1)
     again.unmount()
   })
+
+  it('does not poll while its interface is parked, and catches up when shown', () => {
+    const w = window as { __MOKORA_ACTIVE__?: boolean }
+    w.__MOKORA_ACTIVE__ = false
+    const hook = renderHook(() => useAccounts())
+    fetchAccounts.mockClear()
+    vi.advanceTimersByTime(REFRESH_MS * 3)
+    expect(fetchAccounts).not.toHaveBeenCalled()
+
+    w.__MOKORA_ACTIVE__ = true
+    window.dispatchEvent(new CustomEvent('mokora-active', { detail: true }))
+    expect(fetchAccounts).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(REFRESH_MS)
+    expect(fetchAccounts).toHaveBeenCalledTimes(2)
+    hook.unmount()
+    delete w.__MOKORA_ACTIVE__
+  })
+
+  it('keeps the list it has when a read says the same', async () => {
+    const account = (online: boolean) => ({
+      id: '1',
+      config_path: 'a',
+      identity: { account_id: 7, nickname: 'x' },
+      running: true,
+      online,
+      browser: true,
+      current: true,
+      startup: false,
+      duplicate: false,
+      last_login: null,
+      avatar: 'data:image/png;base64,AAAA',
+      in_game: false,
+      character: null,
+      locked: false,
+    })
+    fetchAccounts.mockImplementation(() => Promise.resolve([account(true)]) as never)
+    const hook = renderHook(() => useAccounts())
+    await vi.advanceTimersByTimeAsync(0)
+    const first = hook.result.current.accounts
+    expect(first).toHaveLength(1)
+
+    await vi.advanceTimersByTimeAsync(REFRESH_MS)
+    expect(hook.result.current.accounts).toBe(first)
+
+    fetchAccounts.mockImplementation(() => Promise.resolve([account(false)]) as never)
+    await vi.advanceTimersByTimeAsync(REFRESH_MS)
+    expect(hook.result.current.accounts).not.toBe(first)
+    expect(hook.result.current.accounts[0].online).toBe(false)
+    hook.unmount()
+    fetchAccounts.mockImplementation(() => Promise.resolve([]))
+  })
 })

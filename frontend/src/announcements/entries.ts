@@ -62,6 +62,16 @@ export type AnnouncementEntry = {
  */
 export const ANNOUNCEMENTS: AnnouncementEntry[] = [
   {
+    id: 'v0_1_5',
+    date: '2026-11-04',
+    version: '0.1.5',
+    notes: {
+      added: ['bot_switch_motion'],
+      fixed: ['game_page_commands', 'account_refresh'],
+      planned: ['bloodshed_ai'],
+    },
+  },
+  {
     id: 'v0_1_4',
     date: '2026-11-03',
     version: '0.1.4',

@@ -1047,6 +1047,13 @@
       "section_planned": "Planned"
     },
     "entries": {
+      "v0_1_5": {
+        "title": "Security update",
+        "bot_switch_motion": "The bot switcher in the top bar now shows the switch between its 3p and 4p lists.",
+        "game_page_commands": "Fixed a security issue: web pages inside the game view could call Mokora's internal functions.",
+        "account_refresh": "With several accounts open, account data is no longer re-read in the background over and over.",
+        "bloodshed_ai": "An AI model for Bloodshed Skirmish (Sichuan mahjong) is planned."
+      },
       "v0_1_4": {
         "title": "Sharing records and macros",
         "share_records": "History has a new \"Share & import\".",

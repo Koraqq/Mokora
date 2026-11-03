@@ -31,16 +31,20 @@ pub fn ui_label(id: &str) -> String {
     format!("ui-{id}")
 }
 
+/// What every game's web view label starts with: those show the game's own
+/// site, and may not call Mokora's commands (see `ipc::guard`).
+pub const GAME_PREFIX: &str = "game-";
+
 /// Label of account `id`'s game.
 pub fn game_label(id: &str) -> String {
-    format!("game-{id}")
+    format!("{GAME_PREFIX}{id}")
 }
 
 /// The account a web view label belongs to (`ui-3` → `3`).
 pub fn account_of_label(label: &str) -> Option<&str> {
     label
         .strip_prefix("ui-")
-        .or_else(|| label.strip_prefix("game-"))
+        .or_else(|| label.strip_prefix(GAME_PREFIX))
 }
 
 /// WebView2's browser arguments for one account: Tauri's own defaults, and the
