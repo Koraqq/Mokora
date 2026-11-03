@@ -68,7 +68,7 @@ export const ANNOUNCEMENTS: AnnouncementEntry[] = [
     notes: {
       added: ['bot_switch_motion'],
       fixed: ['game_page_commands', 'account_refresh'],
-      planned: ['bloodshed_ai'],
+      planned: ['bloodshed_ai', 'other_riichi'],
     },
   },
   {

@@ -1049,10 +1049,11 @@
     "entries": {
       "v0_1_5": {
         "title": "Security update",
-        "bot_switch_motion": "The bot switcher in the top bar now shows the switch between its 3p and 4p lists.",
+        "bot_switch_motion": "The toolbar's bot switcher now shows a switch effect between the 3p and 4p models.",
         "game_page_commands": "Fixed a security issue: web pages inside the game view could call Mokora's internal functions.",
         "account_refresh": "With several accounts open, account data is no longer re-read in the background over and over.",
-        "bloodshed_ai": "An AI model for Bloodshed Skirmish (Sichuan mahjong) is planned."
+        "bloodshed_ai": "A bot model for Bloodshed Skirmish is planned.",
+        "other_riichi": "Support for other riichi mahjong games may be added."
       },
       "v0_1_4": {
         "title": "Sharing records and macros",

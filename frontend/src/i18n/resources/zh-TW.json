@@ -1049,10 +1049,11 @@
     "entries": {
       "v0_1_5": {
         "title": "安全性更新",
-        "bot_switch_motion": "右上角 AI 切換在三人與四人模型之間切換時，會顯示切換效果。",
+        "bot_switch_motion": "工具欄的 bot 切換在三人與四人模型之間切換時，新增切換效果。",
         "game_page_commands": "修正遊戲畫面中的網頁可以呼叫 Mokora 內部功能的安全性問題。",
-        "account_refresh": "開啟多個帳號時，背景不再反覆讀取帳號資料。",
-        "bloodshed_ai": "預計新增赤羽之戰（四川麻將）的 AI 模型。"
+        "account_refresh": "開啟多帳號時，背景不再反覆讀取帳號資料。",
+        "bloodshed_ai": "預計新增赤羽之戰的 bot 模型。",
+        "other_riichi": "可能新增其他日麻。"
       },
       "v0_1_4": {
         "title": "分享戰績與巨集",
