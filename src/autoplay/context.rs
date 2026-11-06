@@ -68,6 +68,10 @@ pub struct AutoplayContext {
     /// The recorded games, which the next-game flow counts today's from for
     /// the daily limit (`history::daily`). `None` in tests.
     pub history: Option<Arc<crate::history::HistoryStore>>,
+    /// The newest bot answer and the decision window it was given in, for
+    /// autoplay switched on in the middle of a decision (see
+    /// `autoplay::pending`). A `std` mutex: it is only ever copied in or out.
+    pub last_decision: std::sync::Mutex<Option<crate::autoplay::pending::LastDecision>>,
 }
 
 impl AutoplayContext {

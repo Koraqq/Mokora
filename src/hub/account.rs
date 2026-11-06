@@ -41,6 +41,13 @@ pub(super) async fn start(hub: &Hub, account: &Arc<Account>) -> Vec<JoinHandle<(
         state.mjai_bus.subscribe(),
     )));
 
+    // The newest bot answer, kept whether or not autoplay is on, so that
+    // switching it on during the player's turn can play that turn.
+    tasks.push(spawn(autoplay::pending::record(
+        state.autoplay_context.clone(),
+        state.bot_response_bus.clone(),
+    )));
+
     if cfg.bot.enabled {
         tasks.push(start_bot_manager(&state));
     }

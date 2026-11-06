@@ -53,6 +53,7 @@ pub mod majsoul;
 pub mod manager;
 pub mod next_game;
 pub mod page;
+pub mod pending;
 pub mod platform;
 pub mod resize;
 pub mod route;

@@ -2034,6 +2034,30 @@ pub async fn mute_update_reminders(app: AppHandle) -> CmdResult<()> {
 
 type License<'a> = State<'a, crate::license::LicenseManager>;
 
+/// Whether the autoplay risk notice needs asking: `signed_out` (no
+/// membership: each window asks for itself), `acked` (this membership has
+/// seen it on some account) or `open` (signed in, not yet seen).
+#[tauri::command]
+pub fn autoplay_notice(license: License<'_>) -> &'static str {
+    let status = license.status();
+    match status.email.filter(|_| status.signed_in) {
+        None => "signed_out",
+        Some(email) if crate::accounts::autoplay_ack().as_deref() == Some(email.as_str()) => "acked",
+        Some(_) => "open",
+    }
+}
+
+/// The notice was accepted: with a membership, no account asks again until it
+/// is signed out.
+#[tauri::command]
+pub fn accept_autoplay_notice(license: License<'_>) -> Result<(), String> {
+    let status = license.status();
+    match status.email.filter(|_| status.signed_in) {
+        Some(email) => crate::accounts::set_autoplay_ack(&email).map_err(|e| format!("{e:#}")),
+        None => Ok(()),
+    }
+}
+
 /// What the license is now.
 #[tauri::command]
 pub fn license_status(license: License<'_>) -> crate::license::LicenseStatus {
@@ -2382,6 +2406,8 @@ macro_rules! ipc_handlers {
             $crate::ipc::commands::delete_game_history_entry,
             $crate::ipc::commands::check_for_update,
             $crate::ipc::commands::license_status,
+            $crate::ipc::commands::autoplay_notice,
+            $crate::ipc::commands::accept_autoplay_notice,
             $crate::ipc::commands::license_start,
             $crate::ipc::commands::license_login,
             $crate::ipc::commands::license_redeem,

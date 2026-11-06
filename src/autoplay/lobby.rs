@@ -332,6 +332,14 @@ impl LobbyWatch {
         self.lock().account = Some((account_id, nickname));
     }
 
+    /// The logged-in account has a new name (it just chose or changed it). Does
+    /// nothing before the account is known: the login names it.
+    pub fn note_nickname(&self, nickname: String) {
+        if let Some(account) = self.lock().account.as_mut() {
+            account.1 = nickname;
+        }
+    }
+
     /// `(account_id, nickname)` of the logged-in account, once known.
     pub fn account(&self) -> Option<(u64, String)> {
         self.lock().account.clone()

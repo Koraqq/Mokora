@@ -1047,6 +1047,15 @@
       "section_planned": "计划更新"
     },
     "entries": {
+      "v0_1_6": {
+        "title": "宏与账号修复",
+        "macro_status": "修复打开宏设置时可能出现账号状态显示问题。",
+        "new_account_name": "修复新建账号取名后,上方名字仍显示“账号 x”的问题。",
+        "switch_on_midturn": "修复轮到自己时才开启自动或全自动时,本轮无法自动的问题。",
+        "multi_account_overlap": "修复多账号的显示重叠问题。",
+        "bloodshed_ai": "预计新增赤羽之战的 bot 模型。",
+        "other_riichi": "可能新增其他日麻游戏。"
+      },
       "v0_1_5": {
         "title": "安全性更新",
         "bot_switch_motion": "工具栏的 bot 切换在三人与四人模型之间切换时，新增切换效果。",

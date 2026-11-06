@@ -65,6 +65,10 @@ const METHOD_CHANGE_MAIN_CHARACTER: &str = ".lq.Lobby.changeMainCharacter";
 /// before any `fetchAccountInfo`.
 const METHOD_OAUTH2_LOGIN: &str = ".lq.Lobby.oauth2Login";
 const METHOD_LOGIN: &str = ".lq.Lobby.login";
+/// A new account picks its name, and any account may rename itself: the
+/// request carries the new `nickname`, the answer only whether it worked.
+const METHOD_CREATE_NICKNAME: &str = ".lq.Lobby.createNickname";
+const METHOD_MODIFY_NICKNAME: &str = ".lq.Lobby.modifyNickname";
 const METHOD_FETCH_CURRENT_MATCH_INFO: &str = ".lq.Lobby.fetchCurrentMatchInfo";
 const METHOD_START_UNIFIED_MATCH: &str = ".lq.Lobby.startUnifiedMatch";
 /// How a queue ends: the client cancels it, the server finds a game for it
@@ -220,6 +224,9 @@ pub struct MajsoulBridge {
     /// the response to that one — and not to a profile it opened — is the
     /// one whose levels are taken.
     own_info_request: Option<u16>,
+    /// The client's last request to name or rename its account: its `msg_id`
+    /// and the nickname asked for, taken once the answer says it worked.
+    nickname_request: Option<(u16, String)>,
     /// `msg_id` of the client's last request for its *own* statistics.
     own_stats_request: Option<u16>,
     /// The client's last request for its *own* recent games: its `msg_id`,
@@ -250,6 +257,7 @@ impl MajsoulBridge {
             input_watch: None,
             lobby_watch: None,
             own_info_request: None,
+            nickname_request: None,
             own_stats_request: None,
             own_extra_request: None,
         }
@@ -386,8 +394,30 @@ impl MajsoulBridge {
         let nickname = payload
             .pointer("/account/nickname")
             .and_then(JsonValue::as_str);
-        if let (Some(id), Some(nickname)) = (id, nickname) {
-            lobby.note_account(id, nickname.to_string());
+        // A brand-new account has no name yet: it is known by its id until
+        // `createNickname` (see `note_named`) gives it one.
+        if let Some(id) = id {
+            let kept = lobby.account().filter(|a| a.0 == id).map(|a| a.1);
+            let name = nickname.map(str::to_string).or(kept).unwrap_or_default();
+            lobby.note_account(id, name);
+        }
+    }
+
+    /// The answer to a `createNickname` / `modifyNickname`: if it worked, the
+    /// account has the name the request asked for.
+    fn note_named(&mut self, msg_id: Option<u16>, payload: &JsonValue) {
+        let Some((id, nickname)) = self.nickname_request.take() else {
+            return;
+        };
+        let refused = payload
+            .pointer("/error/code")
+            .and_then(JsonValue::as_u64)
+            .is_some_and(|code| code != 0);
+        if msg_id != Some(id) || refused || nickname.is_empty() {
+            return;
+        }
+        if let Some(lobby) = &self.lobby_watch {
+            lobby.note_nickname(nickname);
         }
     }
 
@@ -536,6 +566,19 @@ impl MajsoulBridge {
                 if msg.msg_id.is_some() && msg.msg_id == self.own_info_request {
                     self.note_account_levels(&msg.payload);
                 }
+                Vec::new()
+            }
+            (MessageType::Request, METHOD_CREATE_NICKNAME)
+            | (MessageType::Request, METHOD_MODIFY_NICKNAME) => {
+                self.nickname_request = msg
+                    .msg_id
+                    .zip(msg.payload.get("nickname").and_then(JsonValue::as_str))
+                    .map(|(id, nickname)| (id, nickname.to_string()));
+                Vec::new()
+            }
+            (MessageType::Response, METHOD_CREATE_NICKNAME)
+            | (MessageType::Response, METHOD_MODIFY_NICKNAME) => {
+                self.note_named(msg.msg_id, &msg.payload);
                 Vec::new()
             }
             (MessageType::Response, METHOD_FETCH_INFO) => {
@@ -5146,6 +5189,46 @@ mod tests {
         assert_eq!(lobby.levels(), (Some(10103), Some(20202)));
         // And who logged in, for telling one account's Mokora from another's.
         assert_eq!(lobby.account(), Some((12345, "player_a".to_string())));
+    }
+
+    /// A new account is known by its id alone until it picks a name; the name it
+    /// picks (or a later one) is what the account is then called, and a refused
+    /// request changes nothing.
+    #[test]
+    fn a_new_account_is_named_by_its_nickname_request() {
+        let lobby = Arc::new(crate::autoplay::lobby::LobbyWatch::default());
+        let mut bridge = MajsoulBridge::new(None, None).with_lobby_watch(Some(lobby.clone()));
+        let mut send = |msg_type, id: u16, method: &str, payload| {
+            bridge.dispatch(&ParsedMessage {
+                msg_type,
+                msg_id: Some(id),
+                method_name: Arc::from(method),
+                payload,
+            });
+        };
+        send(
+            MessageType::Response,
+            1,
+            METHOD_OAUTH2_LOGIN,
+            json!({ "account": { "account_id": 777, "level": { "id": 10101 } } }),
+        );
+        assert_eq!(lobby.account(), Some((777, String::new())));
+
+        send(MessageType::Request, 2, METHOD_CREATE_NICKNAME, json!({ "nickname": "taken" }));
+        send(MessageType::Response, 2, METHOD_CREATE_NICKNAME, json!({ "error": { "code": 1234 } }));
+        assert_eq!(lobby.account(), Some((777, String::new())), "a refused name changes nothing");
+
+        send(MessageType::Request, 3, METHOD_CREATE_NICKNAME, json!({ "nickname": "Koko" }));
+        send(MessageType::Response, 3, METHOD_CREATE_NICKNAME, json!({}));
+        assert_eq!(lobby.account(), Some((777, "Koko".to_string())));
+
+        send(MessageType::Request, 4, METHOD_MODIFY_NICKNAME, json!({ "nickname": "Koko2" }));
+        send(MessageType::Response, 9, METHOD_MODIFY_NICKNAME, json!({}));
+        assert_eq!(
+            lobby.account(),
+            Some((777, "Koko".to_string())),
+            "an answer to some other request is not this one's"
+        );
     }
 
     /// An event table is told by the special rules it switches on.

@@ -41,6 +41,7 @@ import { UpdatesCard } from '@/components/settings/UpdatesCard'
 import { UnsavedBar } from '@/components/settings/UnsavedBar'
 import { useLicense } from '@/hooks/useLicense'
 import { useProStatus } from '@/hooks/useProStatus'
+import { acknowledgeAutoplayRisk, autoplayRiskAcknowledged } from '@/lib/autoplayRisk'
 import { paidAccess } from '@/lib/license'
 import { moduleReady } from '@/lib/pro'
 import {
@@ -345,26 +346,6 @@ export function Settings() {
       </Dialog>
     </div>
   )
-}
-
-const AUTOPLAY_ACK_KEY = 'mokora.autoplayRiskAck'
-
-/** Has the player seen the autoplay risk notice before? Kept in the webview's
- *  storage, so it is asked once per account window. */
-function autoplayRiskAcknowledged(): boolean {
-  try {
-    return localStorage.getItem(AUTOPLAY_ACK_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-function acknowledgeAutoplayRisk() {
-  try {
-    localStorage.setItem(AUTOPLAY_ACK_KEY, '1')
-  } catch {
-    /* asked again next time */
-  }
 }
 
 /** Everything optional that leaves the machine, in one place. Nothing here

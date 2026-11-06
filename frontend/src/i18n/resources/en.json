@@ -1047,6 +1047,15 @@
       "section_planned": "Planned"
     },
     "entries": {
+      "v0_1_6": {
+        "title": "Macro and account fixes",
+        "macro_status": "Fixed account states sometimes showing wrongly when the macro settings are opened.",
+        "new_account_name": "Fixed a new account still showing \"Account x\" at the top after it was named.",
+        "switch_on_midturn": "Fixed auto or full auto not playing the current turn when it is turned on during your own turn.",
+        "multi_account_overlap": "Fixed overlapping display with several accounts.",
+        "bloodshed_ai": "A bot model for Bloodshed Skirmish is planned.",
+        "other_riichi": "Support for other riichi mahjong games may be added."
+      },
       "v0_1_5": {
         "title": "Security update",
         "bot_switch_motion": "The toolbar's bot switcher now shows a switch effect between the 3p and 4p models.",

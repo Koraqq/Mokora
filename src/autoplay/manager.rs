@@ -32,6 +32,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::{broadcast::error::RecvError, Mutex, RwLock};
 use tracing::{debug, info, warn};
 
+/// How often the manager looks for autoplay having been switched on.
+const ENABLE_POLL: Duration = Duration::from_millis(250);
+
 /// How long before a cached `CanvasRect` is treated as stale and re-queried.
 const CANVAS_RECT_TTL: Duration = Duration::from_secs(30);
 
@@ -82,6 +85,11 @@ struct ManagerState {
     /// Decisions in a row where the client accepted nothing we pressed.
     /// Reset by any input the client does accept.
     dead_clicks: u32,
+    /// Whether autoplay was on when last looked at, to see it being switched on.
+    was_enabled: bool,
+    /// The decision window autoplay last planned a bot answer for (see
+    /// `autoplay::pending`): an answer to the same window is not played twice.
+    handled_window: Option<Instant>,
     /// Cached seat index for our player. Captured directly from
     /// `StartGame { id }` and kept across kyoku resets. Avoids try_lock
     /// failures in the synchronous mjai event handler causing missed
@@ -136,8 +144,22 @@ impl AutoplayManager {
             .await;
         });
 
+        // Started because autoplay was just switched on: it may be the
+        // player's turn right now.
+        self.state.was_enabled = self.cfg.read().await.autoplay.enabled;
+        self.resume_pending().await;
+        let mut watch = tokio::time::interval(ENABLE_POLL);
+        watch.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
         loop {
-            match next_input(&mut bot_rx, &mut mjai_rx).await {
+            let input = tokio::select! {
+                input = next_input(&mut bot_rx, &mut mjai_rx) => input,
+                _ = watch.tick() => {
+                    self.check_switched_on().await;
+                    continue;
+                }
+            };
+            match input {
                 Input::Bot(msg) => match msg {
                     Ok(resp) => self.handle_bot_response(resp).await,
                     Err(RecvError::Lagged(n)) => warn!("autoplay: bot bus lagged {n}"),
@@ -160,6 +182,30 @@ impl AutoplayManager {
         }
     }
 
+    /// Autoplay was just switched on (or the manager was just started by it):
+    /// if the player is in the middle of a decision, play the bot's answer to
+    /// it now rather than waiting for the next one.
+    async fn check_switched_on(&mut self) {
+        let on = self.cfg.read().await.autoplay.enabled;
+        if on && !self.state.was_enabled {
+            self.resume_pending().await;
+        }
+        self.state.was_enabled = on;
+    }
+
+    async fn resume_pending(&mut self) {
+        let window = self.ctx.time_budget.read().ok().and_then(|g| *g);
+        let last = self.ctx.last_decision.lock().ok().and_then(|g| g.clone());
+        if let Some(resp) = crate::autoplay::pending::resumable(
+            last.as_ref(),
+            window.as_ref(),
+            self.state.handled_window,
+        ) {
+            info!("autoplay: switched on during a decision; playing {:?}", resp.action);
+            self.handle_bot_response(resp).await;
+        }
+    }
+
     async fn handle_bot_response(&mut self, resp: BotResponse) {
         // Re-read config every iteration so `cfg.autoplay.enabled` can be
         // toggled at runtime via the Settings UI without restarting.
@@ -178,6 +224,7 @@ impl AutoplayManager {
         // model — neither can alter the chosen action. `opened_at` is kept
         // as the window's identity for the post-sleep staleness check.
         let planned_budget = self.ctx.time_budget.read().ok().and_then(|g| *g);
+        self.state.handled_window = planned_budget.map(|b| b.opened_at);
         let budget = planned_budget.map(|b| crate::autoplay::delay::BudgetSnapshot {
             fixed_ms: b.fixed_ms,
             add_ms: b.add_ms,

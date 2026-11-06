@@ -62,6 +62,15 @@ export type AnnouncementEntry = {
  */
 export const ANNOUNCEMENTS: AnnouncementEntry[] = [
   {
+    id: 'v0_1_6',
+    date: '2026-11-07',
+    version: '0.1.6',
+    notes: {
+      fixed: ['macro_status', 'new_account_name', 'switch_on_midturn', 'multi_account_overlap'],
+      planned: ['bloodshed_ai', 'other_riichi'],
+    },
+  },
+  {
     id: 'v0_1_5',
     date: '2026-11-04',
     version: '0.1.5',

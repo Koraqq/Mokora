@@ -1047,6 +1047,15 @@
       "section_planned": "預計更新"
     },
     "entries": {
+      "v0_1_6": {
+        "title": "巨集與帳號修正",
+        "macro_status": "修正開啟巨集設定時可能會有帳號狀態顯示問題。",
+        "new_account_name": "修正新建帳號取名後,上方名字仍顯示「帳號 x」的問題。",
+        "switch_on_midturn": "修正輪到自己時才開啟自動或全自動時,本輪無法自動的問題。",
+        "multi_account_overlap": "修正多帳號的顯示重疊問題。",
+        "bloodshed_ai": "預計新增赤羽之戰的 bot 模型。",
+        "other_riichi": "可能新增其他日麻遊戲。"
+      },
       "v0_1_5": {
         "title": "安全性更新",
         "bot_switch_motion": "工具欄的 bot 切換在三人與四人模型之間切換時，新增切換效果。",

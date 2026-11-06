@@ -15,6 +15,7 @@ import { NoCoinsDialog } from '@/components/NoCoinsDialog'
 import { QuitDialog } from '@/components/QuitDialog'
 import { useEscapeToHome } from '@/hooks/useEscapeToHome'
 import { useTauriBridge } from '@/hooks/useTauriBridge'
+import { useAutoplayRiskSync } from '@/hooks/useAutoplayRiskSync'
 import { useSharedAppearance, useZoomShortcut } from '@/lib/appearance'
 import { useSidebar, useSidebarSettings } from '@/hooks/useSidebar'
 import { useUiPrefsStore } from '@/stores/uiPrefsStore'
@@ -24,6 +25,7 @@ export default function App() {
   useTauriBridge()
   useSharedAppearance()
   useZoomShortcut()
+  useAutoplayRiskSync()
   useEscapeToHome()
   const location = useLocation()
   const scale = useUiPrefsStore((s) => s.scale)

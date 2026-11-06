@@ -65,6 +65,7 @@ const ORDER_FILE: &str = "order.json";
 /// the whole app: every account has its own browser storage, so keeping it
 /// there made each account show the same announcement again.
 const ANNOUNCEMENT_FILE: &str = "announcement.json";
+const AUTOPLAY_ACK_FILE: &str = "autoplay-ack.json";
 /// The look one account shared with all of them (see [`Appearance`]).
 const APPEARANCE_FILE: &str = "appearance.json";
 /// The game page's layout one account shared with all of them, in the
@@ -150,8 +151,9 @@ fn numbered_dirs() -> Vec<(u32, PathBuf)> {
 }
 
 /// Make a new account: `accounts/<n>/config.toml`, a copy of `template` (the
-/// current account's settings, so the bot and autoplay choices carry over)
-/// with its own browser profile and log directory. Returns its config path.
+/// current account's settings, so the bot choices carry over, but with
+/// automation off) with its own browser profile and log directory. Returns
+/// its config path.
 pub fn create(template: &AppConfig) -> Result<PathBuf> {
     let next = numbered_dirs().last().map_or(2, |(n, _)| n + 1);
     let rel = format!("{ACCOUNTS_DIR}/{next}");
@@ -168,8 +170,12 @@ pub fn create(template: &AppConfig) -> Result<PathBuf> {
 /// own: logs relative to the app (`rel`), the browser profile at `profile` —
 /// absolute, because `capture::chromium::profile::resolve_profile_dir`
 /// accepts nothing else (see [`heal_profile_dir`] for when the folder moves).
+/// A new account never starts playing for its player: autoplay and full auto
+/// are off whatever the template had.
 fn config_for(template: &AppConfig, rel: &str, profile: &str) -> AppConfig {
     let mut cfg = template.clone();
+    cfg.autoplay.enabled = false;
+    cfg.autoplay.next_game.enabled = false;
     cfg.capture.chromium.user_data_dir = profile.to_string();
     cfg.logging.dir = PathBuf::from(format!("{rel}/logs"));
     cfg
@@ -349,6 +355,51 @@ pub fn set_ui_language(lang: &str) -> Result<()> {
         serde_json::to_vec(&serde_json::json!({ "lang": lang }))?,
     )
     .with_context(|| format!("writing {}", path.display()))
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct AutoplayAck {
+    email: Option<String>,
+}
+
+/// The membership (its email) that has seen the autoplay risk notice. The
+/// notice is asked once per membership, whatever account window turns
+/// automation on: it is shared by every account.
+pub fn autoplay_ack() -> Option<String> {
+    autoplay_ack_in(&crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)))
+}
+
+fn autoplay_ack_in(accounts_root: &Path) -> Option<String> {
+    let bytes = std::fs::read(accounts_root.join(AUTOPLAY_ACK_FILE)).ok()?;
+    serde_json::from_slice::<AutoplayAck>(&bytes).ok()?.email
+}
+
+/// Remember that the membership `email` has seen the notice.
+pub fn set_autoplay_ack(email: &str) -> Result<()> {
+    set_autoplay_ack_in(&crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)), email)
+}
+
+fn set_autoplay_ack_in(accounts_root: &Path, email: &str) -> Result<()> {
+    std::fs::create_dir_all(accounts_root)
+        .with_context(|| format!("creating {}", accounts_root.display()))?;
+    let path = accounts_root.join(AUTOPLAY_ACK_FILE);
+    crate::util::write_atomic(
+        &path,
+        serde_json::to_vec(&AutoplayAck {
+            email: Some(email.to_string()),
+        })?,
+    )
+    .with_context(|| format!("writing {}", path.display()))
+}
+
+/// Signing out of the membership ends it: the notice is asked again.
+pub fn clear_autoplay_ack() {
+    let path = crate::util::resolve_dir(Path::new(ACCOUNTS_DIR)).join(AUTOPLAY_ACK_FILE);
+    if let Err(e) = std::fs::remove_file(&path) {
+        if e.kind() != std::io::ErrorKind::NotFound {
+            tracing::warn!("accounts: could not clear the autoplay notice: {e}");
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -860,6 +911,18 @@ mod tests {
         assert_eq!(cfg.bot.active_3p, AppConfig::default().bot.active_3p);
     }
 
+    #[test]
+    fn a_new_account_starts_with_automation_off() {
+        let mut template = AppConfig::default();
+        template.autoplay.enabled = true;
+        template.autoplay.next_game.enabled = true;
+        template.bot.active_4p = "mora-4p".into();
+        let cfg = config_for(&template, "./accounts/2", "C:/mokora/accounts/2/chrome-profile");
+        assert!(!cfg.autoplay.enabled);
+        assert!(!cfg.autoplay.next_game.enabled);
+        assert_eq!(cfg.bot.active_4p, "mora-4p", "the bot choice still carries over");
+    }
+
     /// Only `accounts/<n>/` accounts get a webview directory of their own.
     #[test]
     fn only_added_accounts_get_their_own_webview_storage() {
@@ -958,6 +1021,17 @@ first_run_completed = true
         mark_duplicates(&mut accounts);
         let flags: Vec<bool> = accounts.iter().map(|a| a.duplicate).collect();
         assert_eq!(flags, [true, true, false, false]);
+    }
+
+    #[test]
+    fn the_autoplay_notice_is_remembered_per_membership() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(autoplay_ack_in(dir.path()), None);
+        set_autoplay_ack_in(dir.path(), "me@example.com").unwrap();
+        assert_eq!(autoplay_ack_in(dir.path()).as_deref(), Some("me@example.com"));
+        set_autoplay_ack_in(dir.path(), "other@example.com").unwrap();
+        assert_eq!(autoplay_ack_in(dir.path()).as_deref(), Some("other@example.com"));
+        assert!(!dir.path().join("autoplay-ack.json.tmp").exists());
     }
 
     #[test]

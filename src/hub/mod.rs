@@ -328,7 +328,8 @@ impl Hub {
         let nickname = self
             .active()
             .and_then(|a| accounts::read_identity(&a.state.config_path))
-            .map(|i| i.nickname);
+            .map(|i| i.nickname)
+            .filter(|name| !name.is_empty());
         let title = match nickname {
             Some(name) => format!("Mokora — {name}"),
             None => "Mokora".to_string(),

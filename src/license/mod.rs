@@ -407,6 +407,8 @@ impl LicenseManager {
             }
         }
         self.drop_session(None);
+        // Signed out: the autoplay notice is asked again on the next sign-in.
+        crate::accounts::clear_autoplay_ack();
         Ok(self.status())
     }
 
