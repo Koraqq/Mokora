@@ -62,6 +62,16 @@ export type AnnouncementEntry = {
  */
 export const ANNOUNCEMENTS: AnnouncementEntry[] = [
   {
+    id: 'v0_1_7',
+    date: '2026-11-11',
+    version: '0.1.7',
+    notes: {
+      added: ['crimson', 'riichi_bot', 'bot_settings', 'bots_page', 'accounts_page'],
+      fixed: ['macro_switch', 'first_account'],
+      planned: ['other_riichi'],
+    },
+  },
+  {
     id: 'v0_1_6',
     date: '2026-11-07',
     version: '0.1.6',

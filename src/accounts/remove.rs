@@ -199,6 +199,10 @@ async fn wipe_main(config_path: &Path, removed: &mut Removed) {
     }
     let (profile, logs) = config_dirs(config_path);
     for dir in [profile, logs].into_iter().flatten() {
+        // Nothing there, nothing to wipe (and nothing to be "outside").
+        if !dir.exists() {
+            continue;
+        }
         if !within_app(&dir) {
             removed
                 .left

@@ -1047,6 +1047,17 @@
       "section_planned": "Planned"
     },
     "entries": {
+      "v0_1_7": {
+        "title": "Bloodshed Skirmish and bot settings",
+        "crimson": "Added the Crimson bot, which automates Bloodshed Skirmish games only.",
+        "riichi_bot": "Added the Riichi bot for three- and four-player games; it declares riichi whenever it can.",
+        "bot_settings": "Every bot model now has its own settings to adjust.",
+        "bots_page": "The bot settings page has been reworked a little.",
+        "accounts_page": "Added \"Accounts\" to the toolbar, with more detailed information on each account.",
+        "macro_switch": "Fixed the buttons not staying in sync while a macro runs.",
+        "first_account": "Fixed the account list showing wrongly after the first account was deleted.",
+        "other_riichi": "Support for other riichi mahjong games may be added (maybe)."
+      },
       "v0_1_6": {
         "title": "Macro and account fixes",
         "macro_status": "Fixed account states sometimes showing wrongly when the macro settings are opened.",
