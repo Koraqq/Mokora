@@ -66,8 +66,8 @@ export const ANNOUNCEMENTS: AnnouncementEntry[] = [
     date: '2026-11-24',
     version: '0.1.8',
     notes: {
-      added: ['tenhou', 'tenhou_full_auto', 'tenhou_history', 'tenhou_profile', 'accounts_by_game', 'top_n', 'characters'],
-      planned: ['tenhou_rank_stop'],
+      added: ['tenhou', 'tenhou_features', 'top_n', 'characters'],
+      planned: ['tenhou_more'],
     },
   },
   {
