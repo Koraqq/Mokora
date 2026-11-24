@@ -62,6 +62,15 @@ export type AnnouncementEntry = {
  */
 export const ANNOUNCEMENTS: AnnouncementEntry[] = [
   {
+    id: 'v0_1_8',
+    date: '2026-11-24',
+    version: '0.1.8',
+    notes: {
+      added: ['tenhou', 'tenhou_full_auto', 'tenhou_history', 'tenhou_profile', 'accounts_by_game', 'top_n', 'characters'],
+      planned: ['tenhou_rank_stop'],
+    },
+  },
+  {
     id: 'v0_1_7',
     date: '2026-11-11',
     version: '0.1.7',

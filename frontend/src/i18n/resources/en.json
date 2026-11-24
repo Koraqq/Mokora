@@ -1047,6 +1047,17 @@
       "section_planned": "Planned"
     },
     "entries": {
+      "v0_1_8": {
+        "title": "Tenhou support",
+        "tenhou": "Added Tenhou: add a Tenhou account from the account switcher or Accounts; analysis, suggested discards and autoplay all work.",
+        "tenhou_full_auto": "Full auto works on Tenhou too: it logs in, picks the table and queues the next game by itself.",
+        "tenhou_history": "History now covers Tenhou, with PT by Tenhou's official rules, optionally at each game's own room and rank.",
+        "tenhou_profile": "A Tenhou account's profile shows its ranks, R and all-time record.",
+        "accounts_by_game": "Accounts and the account switcher are sorted by game; a Tenhou account is named after its nickname and keeps its Tenhou ID.",
+        "top_n": "The suggested discards table shows up to 5 tiles, and the number can be changed right on the play screen.",
+        "characters": "Added icons for the newest characters (including the Frieren collaboration).",
+        "tenhou_rank_stop": "Full auto stopping when a Tenhou rank goes up or down."
+      },
       "v0_1_7": {
         "title": "Bloodshed Skirmish and bot settings",
         "crimson": "Added the Crimson bot, which automates Bloodshed Skirmish games only.",
